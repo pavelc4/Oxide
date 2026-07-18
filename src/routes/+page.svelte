@@ -32,19 +32,19 @@
 	// Performance Monitoring State
 	let dataCpu = $state(Array(40).fill(0));
 	let dataMem = $state(Array(40).fill(0));
-	let dataFps = $state(Array(40).fill(0));
-	let dataCores = $state(Array(8).fill(0).map(() => Array(25).fill(0)));
-
-	let coreUsages = $state(Array(8).fill(0));
-	let coreSpeeds = $state(Array(8).fill(0));
-	let topPackageName = $state('System UI');
-	let currentFps = $state(60);
 	let currentCpu = $state(18);
 	let currentMem = $state(45);
 	let memStr = $state('3.8 GB / 8 GB');
 	let uptimeStr = $state('0:00:00');
-	let lastFpsData: unknown = null;
 	let lastCpuData: unknown = null;
+
+	// Mock recent activity stream
+	const recentActivities = [
+		{ time: '10:02 AM', icon: 'usb', title: 'Device Connected', detail: 'USB 3.2 High-Speed (5037)', level: 'info' },
+		{ time: '09:55 AM', icon: 'install_mobile', title: 'App Verified', detail: 'com.android.chrome (Version 124.0)', level: 'success' },
+		{ time: '09:48 AM', icon: 'terminal', title: 'Shell Executed', detail: 'getprop ro.product.model', level: 'info' },
+		{ time: '09:30 AM', icon: 'bolt', title: 'Fastboot Polled', detail: 'Target active slot: A', level: 'warning' }
+	];
 
 	let intervalId: ReturnType<typeof setInterval> | undefined;
 	let isPageVisible = true;
@@ -68,10 +68,8 @@
 
 		await loadDevices();
 
-		// Initial mock graphs for aesthetic preview
 		dataCpu = Array(40).fill(0).map(() => Math.floor(Math.random() * 20 + 15));
 		dataMem = Array(40).fill(0).map(() => Math.floor(Math.random() * 15 + 40));
-		dataFps = Array(40).fill(0).map(() => Math.floor(Math.random() * 10 + 52));
 
 		document.addEventListener('visibilitychange', onVisibilityChange);
 
@@ -82,14 +80,7 @@
 
 			isPolling = true;
 			try {
-				const [topPkg, perf] = await Promise.all([
-					safeInvoke<{ name?: string }>('get_top_package', { serial: selectedDevice }).catch(() => null),
-					safeInvoke<{ memory?: any; uptime?: any; cpu?: any; fps?: any }>('get_performance_profile', { serial: selectedDevice }).catch(() => null)
-				]);
-
-				if (topPkg && topPkg.name) {
-					topPackageName = topPkg.name.split('.').pop() || topPkg.name;
-				}
+				const perf = await safeInvoke<{ memory?: any; uptime?: any; cpu?: any }>('get_performance_profile', { serial: selectedDevice }).catch(() => null);
 
 				if (perf) {
 					if (perf.memory && perf.memory.Ok) {
@@ -130,19 +121,6 @@
 						lastCpuData = currentCpus;
 						dataCpu = [...dataCpu.slice(1), currentCpu];
 					}
-
-					if (perf.fps && perf.fps.Ok) {
-						const fpsData = perf.fps.Ok;
-						if (fpsData.flips !== null && lastFpsData !== null && fpsData.flips > (lastFpsData as any).flips) {
-							const deltaFlips = fpsData.flips - (lastFpsData as any).flips;
-							const deltaTime = fpsData.timestamp_ms - (lastFpsData as any).timestamp_ms;
-							if (deltaTime > 0) {
-								currentFps = Math.round((deltaFlips * 1000) / deltaTime);
-							}
-						}
-						lastFpsData = fpsData;
-						dataFps = [...dataFps.slice(1), currentFps];
-					}
 				}
 			} catch (e) {
 				console.warn('Polling status info:', e);
@@ -179,7 +157,7 @@
 						id: d.serial,
 						name: d.model || d.serial,
 						status: 'Online',
-						connection: d.serial.includes('.') ? 'Wireless ADB' : 'USB',
+						connection: d.serial.includes('.') ? 'Wireless ADB' : 'USB 3.2 Gen2',
 						androidVersion: 'Android 14 (API 34)',
 						batteryLevel: 88,
 						isCharging: true,
@@ -329,46 +307,25 @@
 				</div>
 			</div>
 		{:else if activeDevice}
-			<!-- Main Device Overview Section (Mock Phone + Info Cards) -->
-			<section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+			<!-- Main Device Overview Section (Compact Device Mockup + Specs Hub) -->
+			<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 				
-				<!-- Left Column: Modern Sleek Smartphone Mockup Frame (Col 4) -->
-				<div class="lg:col-span-4 flex flex-col items-center justify-center rounded-[32px] bg-surface-container p-6 relative overflow-hidden shadow-sm min-h-[400px]">
-					<div class="relative w-48 h-[370px] rounded-[44px] bg-neutral-950 p-2.5 shadow-2xl flex flex-col justify-between border-[5px] border-neutral-800 ring-1 ring-neutral-700/50">
-						<!-- Phone Notch / Camera Pill -->
-						<div class="w-16 h-3.5 bg-neutral-900 rounded-full mx-auto flex items-center justify-center gap-1.5 px-2 z-20 mt-0.5">
-							<span class="w-1.5 h-1.5 rounded-full bg-neutral-700"></span>
-							<span class="w-2 h-2 rounded-full bg-neutral-800"></span>
-						</div>
-
-						<!-- Smartphone Screen Content -->
-						<div class="flex-1 rounded-[34px] bg-gradient-to-br from-neutral-900 via-neutral-950 to-primary/25 p-4 flex flex-col justify-between relative overflow-hidden my-1 shadow-inner">
-							<!-- Screen Top Bar -->
-							<div class="flex justify-between items-center text-[9px] font-mono text-neutral-400 z-10">
-								<span>10:00</span>
-								<div class="flex items-center gap-1">
-									<span class="material-symbols-outlined text-[11px]">wifi</span>
-									<span class="material-symbols-outlined text-[11px] text-emerald-400">battery_5_bar</span>
-								</div>
-							</div>
-
-							<!-- Center Screen Brand Watermark -->
-							<div class="flex flex-col items-center justify-center gap-2 my-auto text-center z-10">
-								<div class="w-12 h-12 rounded-2xl bg-primary/20 text-primary flex items-center justify-center shadow-lg backdrop-blur-md">
-									<span class="material-symbols-outlined text-[24px]">smartphone</span>
-								</div>
-								<span class="text-xs font-bold text-on-surface tracking-wide px-2 truncate w-full">{activeDevice.name}</span>
-								<span class="text-[8px] font-mono text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">CONNECTED ({activeDevice.connection})</span>
-							</div>
-
-							<!-- Screen Bottom Indicator -->
-							<div class="w-14 h-1 bg-neutral-500/50 rounded-full mx-auto z-10"></div>
-						</div>
+				<!-- Left Column: Compact Device Mockup Asset (Col 3 - Dense & Tight) -->
+				<div class="lg:col-span-3 flex flex-col items-center justify-center rounded-[32px] bg-surface-container p-5 relative overflow-hidden shadow-sm min-h-[340px]">
+					<img
+						src="/device.svg"
+						alt="Connected Device Mockup"
+						class="w-[170px] max-h-[290px] object-contain drop-shadow-xl transition-all duration-300 hover:scale-[1.03]"
+					/>
+					<div class="mt-3 flex items-center gap-2 bg-surface-container-high px-3.5 py-1 rounded-full shadow-xs">
+						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+						<span class="text-xs font-bold text-on-surface truncate max-w-[120px]">{activeDevice.name}</span>
+						<span class="text-[9px] font-mono text-on-surface-variant font-bold">({activeDevice.connection})</span>
 					</div>
 				</div>
 
-				<!-- Right Column: Extended Device Specs & Quick Action Buttons (Col 8) -->
-				<div class="lg:col-span-8 flex flex-col justify-between gap-4">
+				<!-- Right Column: Extended Device Specs & Quick Action Buttons (Col 9) -->
+				<div class="lg:col-span-9 flex flex-col justify-between gap-4">
 					
 					<!-- Device Info Card Grid -->
 					<div class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
@@ -383,28 +340,28 @@
 						</div>
 
 						<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-							<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
+							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
 									<span class="material-symbols-outlined text-[14px] text-primary">android</span> OS Version
 								</span>
 								<span class="font-bold text-on-surface truncate">{activeDevice.androidVersion || 'Android 14'}</span>
 							</div>
 
-							<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
+							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
 									<span class="material-symbols-outlined text-[14px] text-emerald-400">battery_charging_full</span> Battery
 								</span>
 								<span class="font-bold text-on-surface">{activeDevice.batteryLevel || 90}% {activeDevice.isCharging ? '(Charging)' : ''}</span>
 							</div>
 
-							<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
+							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
 									<span class="material-symbols-outlined text-[14px] text-sky-400">aspect_ratio</span> Resolution
 								</span>
 								<span class="font-bold text-on-surface truncate">{activeDevice.resolution || '1440 x 3120'}</span>
 							</div>
 
-							<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
+							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
 									<span class="material-symbols-outlined text-[14px] text-purple-400">memory</span> Architecture
 								</span>
@@ -413,7 +370,7 @@
 						</div>
 
 						<!-- Storage Bar -->
-						<div class="bg-surface-container-high p-4 rounded-2xl flex flex-col gap-2">
+						<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-2">
 							<div class="flex justify-between items-center text-xs font-semibold">
 								<span class="text-on-surface-variant flex items-center gap-1.5">
 									<span class="material-symbols-outlined text-[16px] text-primary">sd_storage</span> Internal Storage
@@ -427,56 +384,56 @@
 					</div>
 
 					<!-- Quick Action Navigation Hub -->
-					<div class="rounded-[32px] bg-surface-container p-5 grid grid-cols-2 sm:grid-cols-4 gap-3 shadow-sm">
+					<div class="rounded-[32px] bg-surface-container p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 shadow-sm">
 						<button
 							onclick={() => goto('/files')}
-							class="flex items-center gap-3 p-3.5 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
+							class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
 						>
-							<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
-								<span class="material-symbols-outlined text-[20px]">folder_open</span>
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
+								<span class="material-symbols-outlined text-[18px]">folder_open</span>
 							</div>
-							<div>
-								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors">File Explorer</span>
-								<span class="text-[10px] text-on-surface-variant">Browse storage</span>
+							<div class="min-w-0">
+								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors truncate">File Explorer</span>
+								<span class="text-[10px] text-on-surface-variant block truncate">Browse storage</span>
 							</div>
 						</button>
 
 						<button
 							onclick={() => goto('/apps')}
-							class="flex items-center gap-3 p-3.5 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
+							class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
 						>
-							<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
-								<span class="material-symbols-outlined text-[20px]">apps</span>
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
+								<span class="material-symbols-outlined text-[18px]">apps</span>
 							</div>
-							<div>
-								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors">App Manager</span>
-								<span class="text-[10px] text-on-surface-variant">Install / Remove</span>
+							<div class="min-w-0">
+								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors truncate">App Manager</span>
+								<span class="text-[10px] text-on-surface-variant block truncate">Install / Remove</span>
 							</div>
 						</button>
 
 						<button
 							onclick={() => goto('/shell')}
-							class="flex items-center gap-3 p-3.5 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
+							class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
 						>
-							<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
-								<span class="material-symbols-outlined text-[20px]">terminal</span>
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
+								<span class="material-symbols-outlined text-[18px]">terminal</span>
 							</div>
-							<div>
-								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors">ADB Shell</span>
-								<span class="text-[10px] text-on-surface-variant">Interactive CLI</span>
+							<div class="min-w-0">
+								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors truncate">ADB Shell</span>
+								<span class="text-[10px] text-on-surface-variant block truncate">Interactive CLI</span>
 							</div>
 						</button>
 
 						<button
 							onclick={() => goto('/flasher')}
-							class="flex items-center gap-3 p-3.5 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
+							class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group text-left"
 						>
-							<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
-								<span class="material-symbols-outlined text-[20px]">bolt</span>
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
+								<span class="material-symbols-outlined text-[18px]">bolt</span>
 							</div>
-							<div>
-								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors">Flasher Studio</span>
-								<span class="text-[10px] text-on-surface-variant">ROM & Sideload</span>
+							<div class="min-w-0">
+								<span class="text-xs font-bold text-on-surface block group-hover:text-primary transition-colors truncate">Flasher Studio</span>
+								<span class="text-[10px] text-on-surface-variant block truncate">ROM & Sideload</span>
 							</div>
 						</button>
 					</div>
@@ -486,7 +443,7 @@
 		{/if}
 
 		<!-- Performance Monitor Panel -->
-		<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-6 shadow-sm shrink-0">
+		<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm shrink-0">
 			<header class="flex items-center justify-between">
 				<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-3">
 					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-container text-on-primary-container">
@@ -506,7 +463,7 @@
 						<span class="text-xs font-semibold text-on-surface-variant">CPU Usage</span>
 						<span class="text-sm font-bold text-emerald-400 font-mono">{currentCpu}%</span>
 					</div>
-					<Sparkline data={dataCpu} color="#4ADE80" height={65} />
+					<Sparkline data={dataCpu} color="#4ADE80" height={60} />
 				</div>
 
 				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest">
@@ -514,7 +471,74 @@
 						<span class="text-xs font-semibold text-on-surface-variant">RAM Memory ({currentMem}%)</span>
 						<span class="text-sm font-bold text-purple-400 font-mono">{memStr}</span>
 					</div>
-					<Sparkline data={dataMem} color="#A78BFA" height={65} />
+					<Sparkline data={dataMem} color="#A78BFA" height={60} />
+				</div>
+			</div>
+		</section>
+
+		<!-- Bottom Section: Quick Power Actions & Live Activity Hub -->
+		<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 shrink-0">
+			<!-- Power & Reboot Controls (Col 5) -->
+			<div class="lg:col-span-5 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-4 shadow-sm">
+				<div>
+					<h3 class="text-sm font-bold text-on-surface flex items-center gap-2 mb-1">
+						<span class="material-symbols-outlined text-primary text-[20px]">power_settings_new</span>
+						Quick Power & Reboot Control
+					</h3>
+					<p class="text-xs text-on-surface-variant">Send instant reboot commands to connected target</p>
+				</div>
+
+				<div class="grid grid-cols-2 gap-2 text-xs">
+					<button
+						onclick={() => rebootDevice('normal')}
+						class="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
+					>
+						<span class="material-symbols-outlined text-[16px] text-emerald-400">restart_alt</span>
+						Reboot System
+					</button>
+					<button
+						onclick={() => rebootDevice('bootloader')}
+						class="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
+					>
+						<span class="material-symbols-outlined text-[16px] text-amber-400">memory</span>
+						Bootloader Mode
+					</button>
+				</div>
+
+				<button
+					onclick={() => rebootDevice('recovery')}
+					class="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs transition-all w-full"
+				>
+					<span class="material-symbols-outlined text-[16px] text-sky-400">build</span>
+					Reboot Recovery (Sideload)
+				</button>
+			</div>
+
+			<!-- Recent Activity Stream (Col 7) -->
+			<div class="lg:col-span-7 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-3 shadow-sm">
+				<div class="flex items-center justify-between">
+					<h3 class="text-sm font-bold text-on-surface flex items-center gap-2">
+						<span class="material-symbols-outlined text-primary text-[20px]">history</span>
+						Recent ADB Operations
+					</h3>
+					<button onclick={() => goto('/audit')} class="text-[11px] font-bold text-primary hover:underline">
+						View Full Audit Log ↗
+					</button>
+				</div>
+
+				<div class="flex flex-col gap-2">
+					{#each recentActivities as act, idx (idx)}
+						<div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-high/60 text-xs">
+							<div class="flex items-center gap-2.5">
+								<span class="material-symbols-outlined text-[16px] text-primary">{act.icon}</span>
+								<div>
+									<span class="font-bold text-on-surface">{act.title}</span>
+									<span class="text-[10px] text-on-surface-variant font-mono block">{act.detail}</span>
+								</div>
+							</div>
+							<span class="text-[10px] font-mono text-on-surface-variant/70">{act.time}</span>
+						</div>
+					{/each}
 				</div>
 			</div>
 		</section>
