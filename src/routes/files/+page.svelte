@@ -359,37 +359,6 @@
 					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Explore, transfer, and manage files on connected Android device</p>
 				</div>
 			</div>
-
-			<!-- Right Control Group -->
-			<div class="flex items-center gap-3 shrink-0">
-				<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full shadow-xs">
-					<span class="relative flex h-2.5 w-2.5">
-						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-					</span>
-					<select
-						value={selectedDevice}
-						onchange={(e) => { selectedDevice = e.currentTarget.value; navigateTo(currentPath); }}
-						class="bg-transparent border-none text-xs font-semibold text-on-surface focus:outline-none cursor-pointer pr-2"
-					>
-						{#if devices.length === 0}
-							<option value="">No Device Detected</option>
-						{:else}
-							{#each devices as dev (dev.id)}
-								<option value={dev.id}>{dev.name}</option>
-							{/each}
-						{/if}
-					</select>
-				</div>
-
-				<button
-					onclick={loadDevices}
-					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
-					title="Refresh Devices"
-				>
-					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
-				</button>
-			</div>
 		</header>
 
 		<!-- Alert Messages -->
