@@ -330,23 +330,52 @@
 							<span class="material-symbols-outlined text-[20px]">info</span>
 						</div>
 						<div>
-							<h3 class="text-sm font-bold text-on-surface">System & Framework Info</h3>
-							<p class="text-xs text-on-surface-variant">Core stack versions and platform data path</p>
+							<h3 class="text-sm font-bold text-on-surface">About Oxide & Contributors</h3>
+							<p class="text-xs text-on-surface-variant">Open-source cross-platform ADB device manager</p>
 						</div>
 					</div>
 
-					<div class="flex flex-col gap-2 text-xs">
-						<div class="flex justify-between py-1.5">
+					<div class="flex flex-col gap-2.5 text-xs">
+						<div class="flex justify-between items-center py-1">
 							<span class="text-on-surface-variant">Application Version</span>
 							<span class="font-bold text-on-surface">Oxide v0.1.0</span>
 						</div>
-						<div class="flex justify-between py-1.5">
+						<div class="flex justify-between items-center py-1">
 							<span class="text-on-surface-variant">Frontend Framework</span>
 							<span class="font-mono text-on-surface">Svelte 5 + Vite 6</span>
 						</div>
-						<div class="flex justify-between py-1.5">
+						<div class="flex justify-between items-center py-1">
 							<span class="text-on-surface-variant">Backend Core</span>
 							<span class="font-mono text-on-surface">Rust (Tauri 2 + adb_client)</span>
+						</div>
+						
+						<!-- GitHub Repository & Contributor Links -->
+						<div class="pt-2 flex flex-col gap-2">
+							<a
+								href="https://github.com/pavelc4/Oxide"
+								target="_blank"
+								rel="noreferrer"
+								class="flex items-center justify-between p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest transition-all group no-underline"
+							>
+								<div class="flex items-center gap-2.5">
+									<span class="material-symbols-outlined text-primary text-[18px]">code</span>
+									<span class="text-xs font-semibold text-on-surface group-hover:text-primary transition-colors">GitHub Repository</span>
+								</div>
+								<span class="text-[11px] font-mono text-on-surface-variant group-hover:text-on-surface">pavelc4/Oxide ↗</span>
+							</a>
+
+							<a
+								href="https://github.com/pavelc4"
+								target="_blank"
+								rel="noreferrer"
+								class="flex items-center justify-between p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest transition-all group no-underline"
+							>
+								<div class="flex items-center gap-2.5">
+									<span class="material-symbols-outlined text-primary text-[18px]">person</span>
+									<span class="text-xs font-semibold text-on-surface group-hover:text-primary transition-colors">Lead Contributor</span>
+								</div>
+								<span class="text-[11px] font-mono font-bold text-primary">@pavelc4 ↗</span>
+							</a>
 						</div>
 					</div>
 				</div>
