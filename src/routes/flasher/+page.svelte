@@ -890,15 +890,37 @@
 						<!-- Terminal Toolbar Header -->
 						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
 							<div>
-								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
-									<span class="material-symbols-outlined text-primary">terminal</span>
-									Fastboot Interactive Console
-								</h3>
+								<div class="flex items-center gap-3">
+									<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
+										<span class="material-symbols-outlined text-primary">terminal</span>
+										Fastboot Interactive Console
+									</h3>
+									<span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+										Ready
+									</span>
+								</div>
 								<p class="text-xs text-on-surface-variant mt-0.5">Execute direct fastboot protocol sub-commands against connected target.</p>
 							</div>
 
 							<!-- Action Buttons -->
 							<div class="flex items-center gap-2">
+								<button
+									onclick={() => {
+										if (navigator.clipboard) {
+											const text = cliHistory.map(h => h.content).join('\n');
+											navigator.clipboard.writeText(text);
+											infoMessage = 'Entire console transcript copied.';
+											setTimeout(() => { if (infoMessage.includes('transcript')) infoMessage = ''; }, 2000);
+										}
+									}}
+									class="flex items-center gap-1.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest px-3.5 py-1.5 text-xs font-bold text-on-surface transition-all shadow-xs"
+									title="Copy Entire Terminal Transcript"
+								>
+									<span class="material-symbols-outlined text-[15px]">content_copy</span>
+									Copy All
+								</button>
+
 								<button
 									onclick={clearCliOutput}
 									class="flex items-center gap-1.5 rounded-full bg-surface-container-high hover:bg-surface-container-highest px-3.5 py-1.5 text-xs font-bold text-on-surface hover:text-error transition-all shadow-xs"
