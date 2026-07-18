@@ -44,7 +44,7 @@
 	let infoMessage = $state('');
 	let searchQuery = $state('');
 	let currentFilter = $state<'all' | 'user' | 'system' | 'enabled' | 'disabled'>('all');
-	
+
 	// Package lists
 	let allPackages = $state<string[]>([]);
 	let selectedPackages = new SvelteSet<string>();
@@ -73,7 +73,7 @@
 	);
 
 	// Derived pagination bounds
-	let totalPages = $derived(Math.ceil(filteredPackages.length / pageSize));
+	let totalPages = $derived(Math.max(1, Math.ceil(filteredPackages.length / pageSize)));
 	let paginatedPackages = $derived(
 		filteredPackages.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 	);
@@ -85,13 +85,23 @@
 		}
 	});
 
+	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+		if (isTauri && invoke) {
+			return (await invoke(cmd, args)) as T;
+		}
+		throw new Error('Tauri API not active');
+	}
+
 	onMount(async () => {
 		try {
-			const tauriApi = await import('@tauri-apps/api/core');
-			invoke = tauriApi.invoke;
-			isTauri = true;
+			if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
+				const tauriApi = await import('@tauri-apps/api/core');
+				invoke = tauriApi.invoke;
+				isTauri = true;
+			} else {
+				isTauri = false;
+			}
 		} catch {
-			console.warn('Tauri not available, using mock mode');
 			isTauri = false;
 		}
 
@@ -102,14 +112,14 @@
 	async function fetchDownloadsDir() {
 		try {
 			if (isTauri && invoke) {
-				const dirs = (await invoke('get_common_directories_cmd')) as [string, string][];
+				const dirs = await safeInvoke<[string, string][]>('get_common_directories_cmd');
 				const dl = dirs.find((d) => d[0] === 'Downloads');
 				if (dl) {
 					downloadsDir = dl[1];
 				}
 			}
 		} catch (e) {
-			console.error('Failed to get host downloads path', e);
+			console.warn('Downloads directory fetch info:', e);
 		}
 	}
 
@@ -118,9 +128,9 @@
 		error = '';
 		try {
 			if (isTauri && invoke) {
-				const rustDevices = (await invoke('get_devices')) as Array<{ serial: string; model?: string }>;
-				if (rustDevices) {
-					devices = rustDevices.map((d: { serial: string; model?: string }) => ({
+				const rustDevices = await safeInvoke<Array<{ serial: string; model?: string }>>('get_devices');
+				if (rustDevices && rustDevices.length > 0) {
+					devices = rustDevices.map((d) => ({
 						id: d.serial,
 						name: d.model || d.serial,
 						status: 'Online',
@@ -131,8 +141,8 @@
 				}
 			} else {
 				devices = [
-					{ id: 'mock-device-123', name: 'Mock Galaxy S24 Ultra', status: 'Online', connection: 'USB' },
-					{ id: 'mock-device-456', name: 'Mock Pixel 8 Pro', status: 'Online', connection: 'Wireless' }
+					{ id: 'mock-device-123', name: 'Google Pixel 8 Pro', status: 'Online', connection: 'USB 3.2' },
+					{ id: 'mock-device-456', name: 'Samsung Galaxy S24 Ultra', status: 'Online', connection: 'Wireless' }
 				];
 			}
 
@@ -164,7 +174,6 @@
 		}
 		error = '';
 
-		// Map filter for Tauri endpoint
 		let tauriFilter = 'all';
 		if (currentFilter === 'system') tauriFilter = 'system';
 		else if (currentFilter === 'user') tauriFilter = 'thirdparty';
@@ -174,12 +183,12 @@
 		try {
 			let packagesList: string[] = [];
 			if (isTauri && invoke) {
-				packagesList = (await invoke('list_packages', {
+				packagesList = await safeInvoke<string[]>('list_packages', {
 					serial: selectedDevice,
 					filter: tauriFilter
-				})) as string[];
+				});
 			} else {
-				// Mock Packages
+				// Mock Packages for browser preview
 				if (currentFilter === 'all') {
 					packagesList = [
 						'com.whatsapp',
@@ -232,8 +241,7 @@
 			}
 
 			allPackages = packagesList || [];
-			
-			// Save in cache
+
 			if (!packageCache[selectedDevice]) {
 				packageCache[selectedDevice] = {};
 			}
@@ -248,19 +256,12 @@
 		}
 	}
 
-	async function selectDeviceChanged(id: string) {
-		selectedDevice = id;
-		selectedAppDetails = null;
-		await fetchPackages();
-	}
-
 	async function selectFilterChanged(filter: 'all' | 'user' | 'system' | 'enabled' | 'disabled') {
 		currentFilter = filter;
 		selectedAppDetails = null;
 		await fetchPackages();
 	}
 
-	// Toggle check for batch select
 	function toggleSelectPackage(pkg: string) {
 		if (selectedPackages.has(pkg)) {
 			selectedPackages.delete(pkg);
@@ -277,25 +278,24 @@
 		}
 	}
 
-	// Single Package details
 	async function viewPackageDetails(pkg: string) {
 		loadingDetails = true;
 		error = '';
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				selectedAppDetails = (await invoke('get_package_info', {
+				selectedAppDetails = await safeInvoke<AppDetails>('get_package_info', {
 					serial: selectedDevice,
 					packageName: pkg
-				})) as AppDetails;
+				});
 			} else {
-				// Mock app details
 				const isSys = pkg.startsWith('com.android.') || pkg.startsWith('com.google.');
+				const namePart = pkg.split('.').pop() || pkg;
 				selectedAppDetails = {
 					package_name: pkg,
 					version_name: '14.22.45',
 					version_code: 4892100,
-					label: pkg.split('.').pop()?.toUpperCase() || pkg,
+					label: namePart.charAt(0).toUpperCase() + namePart.slice(1),
 					install_location: 'InternalOnly',
 					flags: ['HAS_CODE', isSys ? 'SYSTEM' : 'USER'],
 					first_install_time: '2025-06-12 11:24:02',
@@ -314,13 +314,12 @@
 		}
 	}
 
-	// Actions on individual packages
 	async function forceStopApp(pkg: string) {
 		error = '';
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await invoke('force_stop_package', { serial: selectedDevice, packageName: pkg });
+				await safeInvoke('force_stop_package', { serial: selectedDevice, packageName: pkg });
 			}
 			infoMessage = `Force stopped ${pkg} successfully.`;
 		} catch (e) {
@@ -334,7 +333,7 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await invoke('clear_package_data', { serial: selectedDevice, packageName: pkg });
+				await safeInvoke('clear_package_data', { serial: selectedDevice, packageName: pkg });
 			}
 			infoMessage = `Cleared data for ${pkg} successfully.`;
 		} catch (e) {
@@ -348,9 +347,9 @@
 		try {
 			if (isTauri && invoke) {
 				if (enable) {
-					await invoke('enable_package', { serial: selectedDevice, packageName: pkg });
+					await safeInvoke('enable_package', { serial: selectedDevice, packageName: pkg });
 				} else {
-					await invoke('disable_package', { serial: selectedDevice, packageName: pkg });
+					await safeInvoke('disable_package', { serial: selectedDevice, packageName: pkg });
 				}
 			}
 			if (selectedAppDetails && selectedAppDetails.package_name === pkg) {
@@ -369,10 +368,10 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				const res = (await invoke('uninstall_package', {
+				const res = await safeInvoke<{ success: boolean; message: string }>('uninstall_package', {
 					serial: selectedDevice,
 					packageName: pkg
-				})) as { success: boolean; message: string };
+				});
 				if (!res.success) {
 					throw new Error(res.message);
 				}
@@ -385,13 +384,12 @@
 		}
 	}
 
-	// New Feature: Launch App
 	async function launchApp(pkg: string) {
 		error = '';
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await invoke('start_package_app', { serial: selectedDevice, packageName: pkg });
+				await safeInvoke('start_package_app', { serial: selectedDevice, packageName: pkg });
 				infoMessage = `Launched ${pkg} successfully.`;
 			} else {
 				infoMessage = `Launched ${pkg} successfully (mock).`;
@@ -401,18 +399,17 @@
 		}
 	}
 
-	// New Feature: Pull APK
 	async function pullApk(pkg: string) {
 		error = '';
 		infoMessage = '';
 		try {
 			const destination = downloadsDir || '/tmp';
 			if (isTauri && invoke) {
-				const savePath = (await invoke('pull_package_apk', {
+				const savePath = await safeInvoke<string>('pull_package_apk', {
 					serial: selectedDevice,
 					packageName: pkg,
 					destination
-				})) as string;
+				});
 				infoMessage = `APK downloaded successfully to: ${savePath}`;
 			} else {
 				infoMessage = `APK downloaded successfully to: ${destination}/${pkg}.apk (mock)`;
@@ -422,12 +419,11 @@
 		}
 	}
 
-	// Batch Actions
 	async function handleBatchUninstall() {
 		const size = selectedPackages.size;
 		if (size === 0) return;
 		if (!confirm(`Are you sure you want to uninstall ${size} packages?`)) return;
-		
+
 		loading = true;
 		error = '';
 		infoMessage = '';
@@ -436,10 +432,10 @@
 			for (const pkg of selectedPackages) {
 				try {
 					if (isTauri && invoke) {
-						const res = (await invoke('uninstall_package', {
+						const res = await safeInvoke<{ success: boolean; message: string }>('uninstall_package', {
 							serial: selectedDevice,
 							packageName: pkg
-						})) as { success: boolean; message: string };
+						});
 						if (!res.success) failCount++;
 					}
 				} catch {
@@ -466,9 +462,9 @@
 			const pkgs = Array.from(selectedPackages);
 			if (isTauri && invoke) {
 				if (enable) {
-					await invoke('enable_multiple_packages_cmd', { serial: selectedDevice, packageNames: pkgs });
+					await safeInvoke('enable_multiple_packages_cmd', { serial: selectedDevice, packageNames: pkgs });
 				} else {
-					await invoke('disable_multiple_packages_cmd', { serial: selectedDevice, packageNames: pkgs });
+					await safeInvoke('disable_multiple_packages_cmd', { serial: selectedDevice, packageNames: pkgs });
 				}
 			}
 			infoMessage = `Batch ${enable ? 'enable' : 'disable'} completed for ${size} apps.`;
@@ -481,23 +477,22 @@
 		}
 	}
 
-	// APK Installation
 	async function installApk(apkPath: string) {
 		installing = true;
 		error = '';
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				const res = (await invoke('install_package', {
+				const res = await safeInvoke<{ success: boolean; message: string; package_name: string | null }>('install_package', {
 					serial: selectedDevice,
 					apkPath
-				})) as { success: boolean; message: string; package_name: string | null };
+				});
 				if (!res.success) {
 					throw new Error(res.message);
 				}
 				infoMessage = `Installed APK successfully: ${res.package_name || ''}`;
 			} else {
-				await new Promise((resolve) => setTimeout(resolve, 1500));
+				await new Promise((resolve) => setTimeout(resolve, 1200));
 				infoMessage = `Installed APK successfully in mock mode.`;
 			}
 			showInstallModal = false;
@@ -511,138 +506,123 @@
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div
-		class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-10 relative"
-	>
-		<!-- Page Header -->
-		<header class="mb-6 flex justify-between items-center shrink-0">
-			<div class="flex items-center gap-4">
+	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-5 shadow-sm">
+		
+		<!-- Clean Page Header -->
+		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2">
+			<div class="flex items-center gap-3">
 				<button
 					onclick={() => goto('/')}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+					class="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 					title="Back to dashboard"
 				>
-					<span class="material-symbols-outlined text-[22px]">arrow_back</span>
+					<span class="material-symbols-outlined text-[20px]">arrow_back</span>
 				</button>
-				<h2 class="text-2xl font-bold tracking-tight text-on-surface flex items-center gap-4">
-					App Manager
-					{#if !isTauri}
-						<span
-							class="text-xs bg-error text-on-error px-3 py-1 rounded-full font-medium tracking-normal"
-							>MOCK MODE</span
-						>
-					{/if}
-				</h2>
+				<div>
+					<div class="flex items-center gap-3">
+						<h2 class="text-2xl font-bold tracking-tight text-on-surface">App Manager Studio</h2>
+						{#if !isTauri}
+							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
+						{/if}
+					</div>
+					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Manage, install, disable bloatware, & export Android packages</p>
+				</div>
 			</div>
 
-			<!-- Device Selector -->
 			<div class="flex items-center gap-3">
-				<span class="text-xs font-semibold text-on-surface-variant">Device:</span>
-				<select
-					value={selectedDevice}
-					onchange={(e) => selectDeviceChanged(e.currentTarget.value)}
-					class="bg-surface-container-high rounded-full px-4 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
-				>
-					{#each devices as dev (dev.id)}
-						<option value={dev.id}>{dev.name} ({dev.id.slice(0, 8)})</option>
-					{/each}
-				</select>
 				<button
-					onclick={loadDevices}
-					class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-all hover:scale-105 active:scale-95"
-					title="Refresh Device List"
+					onclick={fetchPackages}
+					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
+					title="Refresh Package List"
 				>
-					<span class="material-symbols-outlined text-[18px]">refresh</span>
+					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
+				</button>
+				<button
+					onclick={() => (showInstallModal = true)}
+					class="flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-xs font-bold text-on-primary hover:brightness-110 transition-all shadow-sm"
+				>
+					<span class="material-symbols-outlined text-[18px]">install_mobile</span>
+					Install APK
 				</button>
 			</div>
 		</header>
 
 		<!-- Alert Messages -->
 		{#if error}
-			<div
-				class="bg-error/15 text-error p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0"
-			>
+			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">error</span>
-				<div class="flex-1 break-words">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-85 text-xs font-semibold uppercase">Dismiss</button>
+				<div class="flex-1 break-words font-semibold">{error}</div>
+				<button onclick={() => (error = '')} class="hover:opacity-85 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		{#if infoMessage}
-			<div
-				class="bg-primary/10 text-primary p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0"
-			>
+			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">check_circle</span>
-				<div class="flex-1 break-words">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-85 text-xs font-semibold uppercase">Dismiss</button>
+				<div class="flex-1 break-words font-semibold">{infoMessage}</div>
+				<button onclick={() => (infoMessage = '')} class="hover:opacity-85 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		<!-- Toolbar / Search and Tabs -->
-		<section class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
+		<section class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
 			<!-- Segmented Controls / Filter Tabs -->
-			<div class="flex rounded-full bg-surface-container p-1 w-fit">
+			<div class="flex rounded-full bg-surface-container p-1 w-fit shadow-xs">
 				{#each ['all', 'user', 'system', 'enabled', 'disabled'] as filter (filter)}
 					<button
 						onclick={() => selectFilterChanged(filter as 'all' | 'user' | 'system' | 'enabled' | 'disabled')}
-						class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 {currentFilter === filter ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:text-on-surface'}"
+						class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 {currentFilter === filter ? 'bg-secondary-container text-on-secondary-container shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 					>
 						{filter}
 					</button>
 				{/each}
 			</div>
 
-			<!-- Search and Install Button -->
-			<div class="flex items-center gap-3 w-full md:w-auto">
-				<div class="relative flex-1 md:flex-none">
-					<span
-						class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]"
-						>search</span
-					>
-					<input
-						type="text"
-						bind:value={searchQuery}
-						placeholder="Search package name..."
-						class="bg-surface-container-high rounded-full pl-10 pr-4 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-full md:w-64"
-					/>
-				</div>
-				<button
-					onclick={() => (showInstallModal = true)}
-					class="flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-on-primary hover:brightness-105 transition-all shrink-0"
-				>
-					<span class="material-symbols-outlined text-[18px]">install_mobile</span>
-					Install APK
-				</button>
+			<!-- Search Bar -->
+			<div class="relative w-full sm:w-72">
+				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search package name..."
+					class="bg-surface-container rounded-full pl-10 pr-4 py-2 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all w-full shadow-xs"
+				/>
 			</div>
 		</section>
 
 		<!-- Main Workspace (Split View) -->
-		<div class="flex flex-1 gap-6 overflow-hidden min-h-0">
+		<div class="flex flex-1 gap-5 overflow-hidden min-h-0">
 			<!-- Packages List Column -->
-			<div class="flex flex-1 flex-col overflow-hidden rounded-[24px] bg-surface-container p-5">
-				<!-- List Title and Header Select All -->
-				<div class="flex items-center justify-between pb-3 mb-2 shrink-0">
-					<div class="flex items-center gap-3">
-						<input
-							type="checkbox"
-							checked={filteredPackages.length > 0 && selectedPackages.size === filteredPackages.length}
-							onclick={toggleSelectAll}
-							class="w-4 h-4 rounded text-primary focus:ring-primary/50"
-							disabled={filteredPackages.length === 0}
-						/>
-						<span class="text-sm font-bold text-on-surface">
+			<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container p-5 shadow-sm">
+				<!-- List Header Select All -->
+				<div class="flex items-center justify-between pb-3 mb-2 shrink-0 border-b border-outline-variant/10">
+					<div class="flex items-center gap-2">
+						<span class="text-xs font-bold text-on-surface">
 							Packages ({filteredPackages.length})
 						</span>
+						<span class="text-[10px] text-on-surface-variant/70 font-medium hidden sm:inline">(Ctrl + Click to multi-select)</span>
 					</div>
-					{#if selectedPackages.size > 0}
-						<span class="text-xs font-semibold bg-primary-container text-on-primary-container px-3 py-1 rounded-full">
-							{selectedPackages.size} Selected
-						</span>
-					{/if}
+					<div class="flex items-center gap-2">
+						{#if selectedPackages.size > 0}
+							<button
+								onclick={() => selectedPackages.clear()}
+								class="text-[10px] font-bold text-on-surface-variant hover:text-on-surface px-2 py-0.5 rounded-lg bg-surface-container-high transition-all"
+							>
+								Clear Selection ({selectedPackages.size})
+							</button>
+						{:else}
+							<button
+								onclick={toggleSelectAll}
+								class="text-[10px] font-bold text-primary hover:underline px-2 py-0.5 rounded-lg"
+							>
+								Select All
+							</button>
+						{/if}
+					</div>
 				</div>
 
 				<!-- Scrollable List -->
-				<div class="flex-1 overflow-y-auto pr-1 flex flex-col gap-1">
+				<div class="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5">
 					{#if loading && allPackages.length === 0}
 						<!-- Skeletal Loading -->
 						<div class="flex flex-col gap-2.5">
@@ -652,11 +632,11 @@
 						</div>
 					{:else if filteredPackages.length === 0}
 						<div class="flex flex-col items-center justify-center p-12 text-center h-full">
-							<span class="material-symbols-outlined text-[48px] text-on-surface-variant opacity-60 mb-3">category</span>
-							<p class="text-sm text-on-surface-variant font-medium">No packages found matching search or filter</p>
+							<span class="material-symbols-outlined text-[48px] text-on-surface-variant opacity-50 mb-3">category</span>
+							<p class="text-xs text-on-surface-variant font-medium">No packages found matching search or filter</p>
 						</div>
 					{:else}
-						<div class="flex flex-col gap-1">
+						<div class="flex flex-col gap-1.5">
 							{#each paginatedPackages as pkg (pkg)}
 								<AppListItem
 									{pkg}
@@ -710,3 +690,19 @@
 		/>
 	</div>
 </main>
+
+<style>
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+			transform: scale(0.99);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	.animate-fade-in {
+		animation: fadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+	}
+</style>
