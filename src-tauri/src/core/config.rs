@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub fastboot_path: Option<String>,
     pub theme: Option<String>,
     pub audit_enabled: bool,
+    pub setup_completed: bool,
 }
 
 impl AppConfig {
@@ -79,6 +80,7 @@ mod tests {
             fastboot_path: None,
             theme: Some("dark".into()),
             audit_enabled: true,
+            setup_completed: false,
         };
 
         let json = serde_json::to_string_pretty(&cfg).unwrap();
