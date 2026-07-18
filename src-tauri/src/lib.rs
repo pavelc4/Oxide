@@ -1,6 +1,7 @@
 mod core;
 mod device;
 mod theme;
+mod audit;
 
 #[tauri::command]
 fn get_devices() -> Vec<device::types::DeviceSummary> {
@@ -101,6 +102,11 @@ fn generate_theme(argb: u32) -> theme::generator::ThemeColors {
     theme::generator::from_color(argb)
 }
 
+#[tauri::command]
+fn get_audit_log() -> Vec<audit::log::AuditEntry> {
+    audit::log::AuditLog::all()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -121,6 +127,7 @@ pub fn run() {
             wireless_connect,
             wireless_disconnect,
             generate_theme,
+            get_audit_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
