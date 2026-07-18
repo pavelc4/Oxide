@@ -50,7 +50,7 @@
 </script>
 
 <div
-	class="w-80 shrink-0 flex flex-col rounded-[24px] bg-surface-container border border-outline-variant/15 p-5 overflow-hidden"
+	class="w-80 shrink-0 flex flex-col rounded-[24px] bg-surface-container p-5 overflow-hidden shadow-sm"
 >
 	{#if loadingDetails}
 		<div class="flex-1 flex flex-col items-center justify-center gap-3">
@@ -60,7 +60,7 @@
 	{:else if selectedAppDetails}
 		<div class="flex-1 flex flex-col overflow-hidden animate-fade-in">
 			<!-- App Header -->
-			<div class="border-b border-outline-variant/30 pb-4 mb-4 shrink-0">
+			<div class="pb-4 mb-4 shrink-0">
 				<div class="flex items-start justify-between">
 					<div
 						class="flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary-container text-on-primary-container shadow-inner"
@@ -128,7 +128,7 @@
 							>APK Storage Path</span
 						>
 						<p
-							class="font-mono text-[10px] bg-surface-container-high border border-outline-variant/15 p-2 rounded-lg break-all select-all text-on-surface"
+							class="font-mono text-[10px] bg-surface-container-high p-2.5 rounded-xl break-all select-all text-on-surface"
 						>
 							{selectedAppDetails.apk_path}
 						</p>
@@ -141,7 +141,7 @@
 							>Data Directory</span
 						>
 						<p
-							class="font-mono text-[10px] bg-surface-container-high border border-outline-variant/15 p-2 rounded-lg break-all select-all text-on-surface"
+							class="font-mono text-[10px] bg-surface-container-high p-2.5 rounded-xl break-all select-all text-on-surface"
 						>
 							{selectedAppDetails.data_dir}
 						</p>
@@ -150,7 +150,7 @@
 			</div>
 
 			<!-- Actions panel -->
-			<div class="border-t border-outline-variant/30 pt-4 mt-4 shrink-0 flex flex-col gap-2">
+			<div class="pt-4 mt-4 shrink-0 flex flex-col gap-2">
 				<div class="flex gap-2">
 					<button
 						onclick={() => runAction(() => onlaunch(selectedAppDetails!.package_name))}
@@ -163,7 +163,7 @@
 					</button>
 					<button
 						onclick={() => runAction(() => onpullapk(selectedAppDetails!.package_name))}
-						class="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-surface-container-highest hover:brightness-105 transition-all text-xs font-bold py-2 text-on-surface border border-outline-variant/40 disabled:opacity-50"
+						class="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-surface-container-highest hover:brightness-105 transition-all text-xs font-bold py-2 text-on-surface disabled:opacity-50"
 						disabled={runningAction}
 						title="Pull base APK to local Downloads folder"
 					>
@@ -175,14 +175,14 @@
 				<div class="flex gap-2">
 					<button
 						onclick={() => runAction(() => onforcestop(selectedAppDetails!.package_name))}
-						class="flex-1 flex items-center justify-center gap-1 rounded-full bg-surface-container-highest hover:brightness-105 transition-all text-[11px] font-semibold py-1.5 text-on-surface border border-outline-variant/40 disabled:opacity-50"
+						class="flex-1 flex items-center justify-center gap-1 rounded-full bg-surface-container-highest hover:brightness-105 transition-all text-[11px] font-semibold py-1.5 text-on-surface disabled:opacity-50"
 						disabled={runningAction}
 					>
 						Stop
 					</button>
 					<button
 						onclick={() => runAction(() => oncleardata(selectedAppDetails!.package_name))}
-						class="flex-1 flex items-center justify-center gap-1 rounded-full bg-surface-container-highest hover:brightness-105 transition-all text-[11px] font-semibold py-1.5 text-on-surface border border-outline-variant/40 disabled:opacity-50"
+						class="flex-1 flex items-center justify-center gap-1 rounded-full bg-surface-container-highest hover:brightness-105 transition-all text-[11px] font-semibold py-1.5 text-on-surface disabled:opacity-50"
 						disabled={runningAction}
 					>
 						Clear Data
@@ -196,8 +196,8 @@
 								ontogglestatus(selectedAppDetails!.package_name, !selectedAppDetails!.is_enabled)
 							)}
 						class="flex-1 flex items-center justify-center gap-1.5 rounded-full hover:brightness-105 transition-all text-[11px] font-bold py-2 disabled:opacity-50 {selectedAppDetails.is_enabled
-							? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-							: 'bg-primary-container text-on-primary-container border border-transparent'}"
+							? 'bg-amber-500/10 text-amber-500'
+							: 'bg-primary-container text-on-primary-container'}"
 						disabled={runningAction}
 					>
 						<span class="material-symbols-outlined text-[14px]">

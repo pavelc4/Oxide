@@ -528,7 +528,7 @@
 					App Manager
 					{#if !isTauri}
 						<span
-							class="text-xs bg-error text-on-error px-3 py-1 rounded-full font-medium tracking-normal border border-error/30"
+							class="text-xs bg-error text-on-error px-3 py-1 rounded-full font-medium tracking-normal"
 							>MOCK MODE</span
 						>
 					{/if}
@@ -541,7 +541,7 @@
 				<select
 					value={selectedDevice}
 					onchange={(e) => selectDeviceChanged(e.currentTarget.value)}
-					class="bg-surface-container-high rounded-full border border-outline-variant px-4 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+					class="bg-surface-container-high rounded-full px-4 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
 				>
 					{#each devices as dev (dev.id)}
 						<option value={dev.id}>{dev.name} ({dev.id.slice(0, 8)})</option>
@@ -560,7 +560,7 @@
 		<!-- Alert Messages -->
 		{#if error}
 			<div
-				class="bg-error/15 text-error border border-error/30 p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0"
+				class="bg-error/15 text-error p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0"
 			>
 				<span class="material-symbols-outlined text-[20px]">error</span>
 				<div class="flex-1 break-words">{error}</div>
@@ -603,7 +603,7 @@
 						type="text"
 						bind:value={searchQuery}
 						placeholder="Search package name..."
-						class="bg-surface-container-high rounded-full pl-10 pr-4 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-full md:w-64 border border-outline-variant/20"
+						class="bg-surface-container-high rounded-full pl-10 pr-4 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-full md:w-64"
 					/>
 				</div>
 				<button
@@ -627,7 +627,7 @@
 							type="checkbox"
 							checked={filteredPackages.length > 0 && selectedPackages.size === filteredPackages.length}
 							onclick={toggleSelectAll}
-							class="w-4 h-4 rounded text-primary focus:ring-primary/50 border-outline-variant"
+							class="w-4 h-4 rounded text-primary focus:ring-primary/50"
 							disabled={filteredPackages.length === 0}
 						/>
 						<span class="text-sm font-bold text-on-surface">

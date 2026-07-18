@@ -31,25 +31,34 @@
 
 	onMount(async () => {
 		try {
-			const tauriApi = await import('@tauri-apps/api/core');
-			invoke = tauriApi.invoke;
-			isTauri = true;
+			if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
+				const tauriApi = await import('@tauri-apps/api/core');
+				invoke = tauriApi.invoke;
+				isTauri = true;
+			} else {
+				isTauri = false;
+			}
 		} catch {
-			console.warn('Tauri not available, using mock mode');
 			isTauri = false;
 		}
 
 		await loadDevices();
 	});
 
+	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+		if (isTauri && invoke) {
+			return (await invoke(cmd, args)) as T;
+		}
+		throw new Error('Tauri API not active');
+	}
+
 	async function loadDevices() {
 		loading = true;
 		error = '';
 		try {
 			if (isTauri && invoke) {
-				const rustDevices = (await invoke('get_devices')) as Array<{ serial: string; model?: string }>;
+				const rustDevices = await safeInvoke<Array<{ serial: string; model?: string }>>('get_devices');
 				if (rustDevices) {
-					// We only care about USB connected devices for TCP/IP enablement
 					devices = rustDevices.map((d) => ({
 						id: d.serial,
 						name: d.model || d.serial,
@@ -65,7 +74,6 @@
 				];
 			}
 
-			// Pre-select USB device
 			const usbDev = devices.find((d) => d.connection === 'USB');
 			if (usbDev) {
 				selectedDevice = usbDev.id;
@@ -93,7 +101,7 @@
 
 		try {
 			if (isTauri && invoke) {
-				await invoke('connect_wireless', {
+				await safeInvoke('connect_wireless', {
 					ip: ipAddr,
 					port: portNum
 				});
@@ -120,7 +128,7 @@
 
 		try {
 			if (isTauri && invoke) {
-				await invoke('disconnect_wireless', {
+				await safeInvoke('disconnect_wireless', {
 					ip: ipAddr,
 					port: portNum
 				});
@@ -146,7 +154,7 @@
 
 		try {
 			if (isTauri && invoke) {
-				await invoke('enable_wireless_tcpip', {
+				await safeInvoke('enable_wireless_tcpip', {
 					serial: selectedDevice,
 					port: portNum
 				});
@@ -164,29 +172,32 @@
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
 	<div
-		class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-10 relative"
+		class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-10 relative shadow-sm"
 	>
 		<!-- Page Header -->
 		<header class="mb-6 flex justify-between items-center shrink-0">
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+					class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95"
 					title="Back to dashboard"
 				>
-					<span class="material-symbols-outlined text-[22px]">arrow_back</span>
+					<span class="material-symbols-outlined text-[20px]">arrow_back</span>
 				</button>
-				<h2 class="text-2xl font-bold tracking-tight text-on-surface flex items-center gap-4">
-					Wireless ADB Setup
-					{#if !isTauri}
-						<span class="text-xs bg-error text-on-error px-3 py-1 rounded-full font-medium tracking-normal border border-error/30">MOCK MODE</span>
-					{/if}
-				</h2>
+				<div>
+					<div class="flex items-center gap-3">
+						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Wireless ADB Setup</h2>
+						{#if !isTauri}
+							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
+						{/if}
+					</div>
+					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Pair & connect Android devices wirelessly over Wi-Fi network</p>
+				</div>
 			</div>
 
 			<button
 				onclick={loadDevices}
-				class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-all hover:scale-105 active:scale-95"
+				class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 				title="Refresh USB Devices"
 			>
 				<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
@@ -195,29 +206,25 @@
 
 		<!-- Alert Messages -->
 		{#if error}
-			<div
-				class="bg-error/15 text-error border border-error/30 p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0 animate-fade-in"
-			>
+			<div class="bg-error/15 text-error p-3.5 rounded-2xl mb-4 font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">error</span>
-				<div class="flex-1 break-words">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-85 text-xs font-semibold uppercase">Dismiss</button>
+				<div class="flex-1 break-words font-semibold">{error}</div>
+				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		{#if infoMessage}
-			<div
-				class="bg-primary/10 text-primary p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0 animate-fade-in"
-			>
+			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl mb-4 font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">check_circle</span>
-				<div class="flex-1 break-words">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-85 text-xs font-semibold uppercase">Dismiss</button>
+				<div class="flex-1 break-words font-semibold">{infoMessage}</div>
+				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		<!-- Grid Layout -->
 		<div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
-			<!-- Col 1: Connect Form -->
-			<section class="rounded-[24px] bg-surface-container p-6 flex flex-col justify-between h-[300px]">
+			<!-- Col 1: Connect Form (Borderless Card) -->
+			<section class="rounded-[24px] bg-surface-container p-6 flex flex-col justify-between h-[300px] shadow-sm">
 				<div>
 					<header class="flex items-center gap-2 pb-2.5 mb-4">
 						<span class="material-symbols-outlined text-primary text-[22px]">settings_input_antenna</span>
@@ -232,7 +239,7 @@
 								type="text"
 								bind:value={connectIp}
 								placeholder="e.g. 192.168.1.10"
-								class="bg-surface-container-high border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface font-mono"
+								class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
 								disabled={connecting}
 							/>
 						</div>
@@ -243,7 +250,7 @@
 								type="text"
 								bind:value={connectPort}
 								placeholder="5555"
-								class="bg-surface-container-high border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface font-mono"
+								class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
 								disabled={connecting}
 							/>
 						</div>
@@ -257,14 +264,14 @@
 				<div class="flex gap-3">
 					<button
 						onclick={disconnectWireless}
-						class="flex-1 rounded-xl bg-surface-container-highest hover:brightness-105 py-2.5 text-xs font-bold text-on-surface disabled:opacity-50"
+						class="flex-1 rounded-xl bg-surface-container-highest hover:brightness-105 py-2.5 text-xs font-bold text-on-surface disabled:opacity-50 transition-all"
 						disabled={connecting || !connectIp.trim()}
 					>
 						Disconnect
 					</button>
 					<button
 						onclick={connectWireless}
-						class="flex-1 rounded-xl bg-primary text-on-primary hover:brightness-105 py-2.5 text-xs font-bold disabled:opacity-50"
+						class="flex-1 rounded-xl bg-primary text-on-primary hover:brightness-105 py-2.5 text-xs font-bold disabled:opacity-50 transition-all shadow-sm"
 						disabled={connecting || !connectIp.trim() || !connectPort.trim()}
 					>
 						{#if connecting}
@@ -276,8 +283,8 @@
 				</div>
 			</section>
 
-			<!-- Col 2: Enable TCP/IP Mode over USB -->
-			<section class="rounded-[24px] bg-surface-container p-6 flex flex-col justify-between h-[300px]">
+			<!-- Col 2: Enable TCP/IP Mode over USB (Borderless Card) -->
+			<section class="rounded-[24px] bg-surface-container p-6 flex flex-col justify-between h-[300px] shadow-sm">
 				<div>
 					<header class="flex items-center gap-2 pb-2.5 mb-4">
 						<span class="material-symbols-outlined text-primary text-[22px]">usb</span>
@@ -289,7 +296,7 @@
 							<span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant pl-0.5">USB Connected Device</span>
 							<select
 								bind:value={selectedDevice}
-								class="bg-surface-container-high rounded-xl border border-outline-variant px-3 py-2 text-sm text-on-surface focus:outline-none font-semibold"
+								class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none font-semibold cursor-pointer"
 								disabled={activatingTcpip || devices.length === 0}
 							>
 								{#if devices.length === 0}
@@ -308,7 +315,7 @@
 								type="text"
 								bind:value={tcpipPort}
 								placeholder="5555"
-								class="bg-surface-container-high border border-outline-variant/40 rounded-xl px-3 py-2 text-sm text-on-surface font-mono"
+								class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs text-on-surface font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
 								disabled={activatingTcpip}
 							/>
 						</div>
@@ -321,7 +328,7 @@
 
 				<button
 					onclick={enableTcpipMode}
-					class="rounded-xl bg-primary text-on-primary hover:brightness-105 py-2.5 text-xs font-bold disabled:opacity-50 w-full"
+					class="rounded-xl bg-primary text-on-primary hover:brightness-105 py-2.5 text-xs font-bold disabled:opacity-50 w-full transition-all shadow-sm"
 					disabled={activatingTcpip || !selectedDevice || !tcpipPort.trim()}
 				>
 					{#if activatingTcpip}

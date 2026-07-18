@@ -88,7 +88,7 @@
 
 <div
 	onclick={onview}
-	class="group flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-2.5 transition-all hover:bg-surface-container-highest cursor-pointer border-b border-outline-variant/5 last:border-b-0 {isActive ? 'bg-surface-container-highest ring-1 ring-primary/20' : ''}"
+	class="group flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-2.5 transition-all hover:bg-surface-container-highest cursor-pointer {isActive ? 'bg-surface-container-highest ring-1 ring-primary/20' : ''}"
 >
 	<!-- Checkbox & Label details -->
 	<div class="flex items-center gap-3 flex-1 min-w-0" onclick={(e) => e.stopPropagation()}>
@@ -96,7 +96,7 @@
 			type="checkbox"
 			checked={selected}
 			onclick={ontoggle}
-			class="w-4 h-4 rounded text-primary focus:ring-primary/50 border-outline-variant"
+			class="w-4 h-4 rounded text-primary focus:ring-primary/50"
 		/>
 		<div class="flex flex-col min-w-0">
 			<span
