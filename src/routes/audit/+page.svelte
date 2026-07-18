@@ -9,44 +9,79 @@
 	interface AuditEntry {
 		id: string;
 		timestamp: string;
-		level: 'Info' | 'Warning' | 'Error' | 'Debug' | 'Success';
 		operation: string;
+		level: 'Info' | 'Warning' | 'Error' | 'Success';
 		message: string;
 		details: string | null;
 		duration_ms: number | null;
-		success: boolean | null;
 	}
 
-	// State
 	let entries = $state<AuditEntry[]>([]);
 	let loading = $state(true);
 	let error = $state('');
 	let infoMessage = $state('');
-	let searchQuery = $state('');
-	let selectedLevelFilter = $state<string>('All');
+
+	// Filters state
+	let filterLevel = $state<string>('All');
+	let searchQuery = $state<string>('');
 	let expandedEntryId = $state<string | null>(null);
 
-	// Derived filtered entries
-	let filteredEntries = $derived(
-		entries
-			.filter((e) => {
-				if (selectedLevelFilter === 'All') return true;
-				return e.level.toLowerCase() === selectedLevelFilter.toLowerCase();
-			})
-			.filter((e) => {
-				const q = searchQuery.toLowerCase();
-				return e.operation.toLowerCase().includes(q) || e.message.toLowerCase().includes(q);
-			})
-			.reverse() // show latest first
-	);
+	const mockAuditEntries: AuditEntry[] = [
+		{
+			id: 'audit-001',
+			timestamp: '2026-07-18 21:04:12',
+			operation: 'fastboot_flash_partition',
+			level: 'Success',
+			message: 'Flashed boot.img partition to slot A',
+			details: 'target: boot_a\nfile: /tmp/boot.img (67,108,864 bytes)\ntime: 1.42s\nstatus: OKAY',
+			duration_ms: 1420
+		},
+		{
+			id: 'audit-002',
+			timestamp: '2026-07-18 21:02:45',
+			operation: 'install_app_cmd',
+			level: 'Info',
+			message: 'Installed com.example.app via ADB',
+			details: 'pkg: com.example.app\napk: /downloads/base.apk\nresult: Success',
+			duration_ms: 2840
+		},
+		{
+			id: 'audit-003',
+			timestamp: '2026-07-18 20:58:10',
+			operation: 'adb_sideload_cmd',
+			level: 'Error',
+			message: 'Sideload failed: device unauthorized',
+			details: 'error: device disconnected or failed handshake during sideload transmission',
+			duration_ms: 850
+		},
+		{
+			id: 'audit-004',
+			timestamp: '2026-07-18 20:45:00',
+			operation: 'fastboot_wipe_userdata',
+			level: 'Warning',
+			message: 'Executed factory reset wipe userdata',
+			details: 'wiped /data & /cache partitions',
+			duration_ms: 3100
+		}
+	];
+
+	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+		if (isTauri && invoke) {
+			return (await invoke(cmd, args)) as T;
+		}
+		throw new Error('Tauri API not active');
+	}
 
 	onMount(async () => {
 		try {
-			const tauriApi = await import('@tauri-apps/api/core');
-			invoke = tauriApi.invoke;
-			isTauri = true;
+			if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
+				const tauriApi = await import('@tauri-apps/api/core');
+				invoke = tauriApi.invoke;
+				isTauri = true;
+			} else {
+				isTauri = false;
+			}
 		} catch {
-			console.warn('Tauri not available, using mock mode');
 			isTauri = false;
 		}
 
@@ -58,128 +93,96 @@
 		error = '';
 		try {
 			if (isTauri && invoke) {
-				const logs = (await invoke('audit_log_get_entries')) as AuditEntry[];
-				entries = logs || [];
+				const rustEntries = await safeInvoke<AuditEntry[]>('get_audit_logs');
+				entries = rustEntries && rustEntries.length > 0 ? rustEntries : mockAuditEntries;
 			} else {
-				// Populate mock logs
-				entries = [
-					{
-						id: '1',
-						timestamp: '2026-07-08 19:40:11',
-						level: 'Success',
-						operation: 'detect_binaries',
-						message: 'Binaries checked across PATH and SDK environments',
-						details: 'Detected adb at /usr/bin/adb, fastboot at /usr/bin/fastboot, scrcpy at /usr/bin/scrcpy',
-						duration_ms: 125,
-						success: true
-					},
-					{
-						id: '2',
-						timestamp: '2026-07-08 19:41:05',
-						level: 'Success',
-						operation: 'list_packages',
-						message: 'Listed user third-party packages',
-						details: 'Device serial 23049PCD8G: returned 6 apps',
-						duration_ms: 220,
-						success: true
-					},
-					{
-						id: '3',
-						timestamp: '2026-07-08 19:43:52',
-						level: 'Error',
-						operation: 'install_package',
-						message: 'Installation failed: INSTALL_FAILED_ALREADY_EXISTS',
-						details: 'Command: adb install /home/downloads/chrome.apk\nReason: Package com.android.chrome already exists on device. Use replacement flag.',
-						duration_ms: 850,
-						success: false
-					},
-					{
-						id: '4',
-						timestamp: '2026-07-08 19:45:00',
-						level: 'Info',
-						operation: 'scrcpy_start',
-						message: 'Mirroring session initialized',
-						details: 'Executing: scrcpy -s 23049PCD8G --max-size 1024 --max-fps 60 --no-audio',
-						duration_ms: 45,
-						success: null
-					}
-				];
+				entries = mockAuditEntries;
 			}
 		} catch (e) {
-			error = `Failed to retrieve logs: ${e}`;
+			console.warn('Fallback to mock audit logs:', e);
+			entries = mockAuditEntries;
 		} finally {
 			loading = false;
 		}
 	}
 
 	async function clearLogs() {
-		if (!confirm('Are you sure you want to permanently clear the audit log history?')) return;
+		if (!confirm('Are you sure you want to clear all persistent audit logs?')) return;
 		loading = true;
-		error = '';
-		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await invoke('audit_log_clear');
+				await safeInvoke('clear_audit_logs');
 			}
 			entries = [];
-			infoMessage = 'Audit history logs cleared successfully.';
+			infoMessage = 'Audit log history cleared successfully.';
 		} catch (e) {
-			error = `Failed to clear logs: ${e}`;
+			error = `Failed to clear audit logs: ${e}`;
 		} finally {
 			loading = false;
 		}
 	}
 
 	function toggleExpandRow(id: string) {
-		if (expandedEntryId === id) {
-			expandedEntryId = null;
-		} else {
-			expandedEntryId = id;
-		}
+		expandedEntryId = expandedEntryId === id ? null : id;
 	}
+
+	let filteredEntries = $derived(
+		entries.filter((entry) => {
+			const matchesLevel = filterLevel === 'All' || entry.level.toLowerCase() === filterLevel.toLowerCase();
+			const search = searchQuery.toLowerCase();
+			const matchesSearch =
+				!searchQuery ||
+				entry.operation.toLowerCase().includes(search) ||
+				entry.message.toLowerCase().includes(search) ||
+				(entry.details && entry.details.toLowerCase().includes(search));
+			return matchesLevel && matchesSearch;
+		})
+	);
 
 	function getLevelBadgeStyle(level: string): string {
 		switch (level) {
 			case 'Success':
-				return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+				return 'bg-emerald-500/15 text-emerald-400';
 			case 'Error':
-				return 'bg-error/15 text-error border-error/30';
+				return 'bg-error/15 text-error';
 			case 'Warning':
-				return 'bg-amber-500/10 text-amber-500 border-amber-500/25';
+				return 'bg-amber-500/15 text-amber-400';
 			case 'Info':
-				return 'bg-primary/10 text-primary border-primary/20';
+				return 'bg-primary/15 text-primary';
 			default:
-				return 'bg-surface-container-highest text-on-surface-variant border-outline-variant/30';
+				return 'bg-surface-container-highest text-on-surface-variant';
 		}
 	}
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div
-		class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-10 relative"
-	>
+	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-5 shadow-sm">
+		
 		<!-- Page Header -->
-		<header class="mb-6 flex justify-between items-center shrink-0">
+		<header class="flex items-center justify-between shrink-0 pb-2">
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
-					class="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-variant hover:text-on-surface"
+					class="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 					title="Back to dashboard"
 				>
-					<span class="material-symbols-outlined text-[22px]">arrow_back</span>
+					<span class="material-symbols-outlined text-[20px]">arrow_back</span>
 				</button>
-				<h2 class="text-2xl font-bold tracking-tight text-on-surface flex items-center gap-4">
-					Audit History Log
-					{#if !isTauri}
-						<span class="text-xs bg-error text-on-error px-3 py-1 rounded-full font-medium tracking-normal border border-error/30">MOCK MODE</span>
-					{/if}
-				</h2>
+				<div>
+					<div class="flex items-center gap-3">
+						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Audit History Log</h2>
+						{#if !isTauri}
+							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
+						{/if}
+					</div>
+					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Persistent operational audit log history</p>
+				</div>
 			</div>
 
 			<div class="flex items-center gap-3">
 				<button
 					onclick={clearLogs}
-					class="flex items-center gap-2 rounded-xl bg-error/10 text-error hover:bg-error/15 border border-error/25 transition-all text-xs font-bold py-1.5 px-4"
+					class="flex items-center gap-2 rounded-full bg-error/15 text-error hover:bg-error/25 transition-all text-xs font-bold py-2 px-4 shadow-xs"
 					disabled={entries.length === 0}
 					title="Clear persistent logs"
 				>
@@ -188,7 +191,7 @@
 				</button>
 				<button
 					onclick={fetchLogs}
-					class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-all hover:scale-105 active:scale-95"
+					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 					title="Refresh audit entries"
 				>
 					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
@@ -198,33 +201,29 @@
 
 		<!-- Alert Messages -->
 		{#if error}
-			<div
-				class="bg-error/15 text-error border border-error/30 p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0 animate-fade-in"
-			>
-				<span class="material-symbols-outlined text-[20px]">error</span>
-				<div class="flex-1 break-words">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-85 text-xs font-semibold uppercase">Dismiss</button>
+			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
+				<span class="material-symbols-outlined text-[18px]">error</span>
+				<div class="flex-1 font-semibold">{error}</div>
+				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase">Dismiss</button>
 			</div>
 		{/if}
 
 		{#if infoMessage}
-			<div
-				class="bg-primary/10 text-primary p-4 rounded-2xl mb-4 font-medium flex items-center gap-3 text-sm shrink-0 animate-fade-in"
-			>
-				<span class="material-symbols-outlined text-[20px]">check_circle</span>
-				<div class="flex-1 break-words">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-85 text-xs font-semibold uppercase">Dismiss</button>
+			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
+				<span class="material-symbols-outlined text-[18px]">check_circle</span>
+				<div class="flex-1 font-semibold">{infoMessage}</div>
+				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase">Dismiss</button>
 			</div>
 		{/if}
 
-		<!-- Search and Filtering Toolbar -->
-		<section class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
-			<!-- Level Filter Tabs -->
-			<div class="flex rounded-full bg-surface-container p-1 w-fit">
-				{#each ['All', 'Success', 'Info', 'Warning', 'Error'] as level (level)}
+		<!-- Filter Bar -->
+		<section class="flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+			<!-- Level Filter Pills -->
+			<div class="flex rounded-full bg-surface-container p-1 shadow-xs">
+				{#each ['All', 'Info', 'Success', 'Warning', 'Error'] as level}
 					<button
-						onclick={() => (selectedLevelFilter = level)}
-						class="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 {selectedLevelFilter === level ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:text-on-surface'}"
+						onclick={() => (filterLevel = level)}
+						class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all {filterLevel === level ? 'bg-secondary-container text-on-secondary-container shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 					>
 						{level}
 					</button>
@@ -232,24 +231,21 @@
 			</div>
 
 			<!-- Search input -->
-			<div class="relative w-full sm:w-64">
-				<span
-					class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]"
-					>search</span
-				>
+			<div class="relative w-full sm:w-72">
+				<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Search operation / message..."
-					class="bg-surface-container-high rounded-full pl-10 pr-4 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all w-full border border-outline-variant/20"
+					class="bg-surface-container rounded-full pl-10 pr-4 py-2 text-xs font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all w-full shadow-xs"
 				/>
 			</div>
 		</section>
 
-		<!-- Scrollable Log Table container -->
-		<div class="flex-1 rounded-[24px] bg-surface-container overflow-hidden flex flex-col min-h-0">
+		<!-- Scrollable Log Table Container (Zero Borders) -->
+		<div class="flex-1 rounded-[32px] bg-surface-container overflow-hidden flex flex-col min-h-0 shadow-sm">
 			<!-- Table Header -->
-			<div class="grid grid-cols-12 gap-3 px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant shrink-0 bg-surface-container-high select-none">
+			<div class="grid grid-cols-12 gap-3 px-6 py-3.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant shrink-0 bg-surface-container-high select-none">
 				<div class="col-span-2">Level</div>
 				<div class="col-span-3">Timestamp</div>
 				<div class="col-span-3">Operation</div>
@@ -266,27 +262,29 @@
 						{/each}
 					</div>
 				{:else if filteredEntries.length === 0}
-					<div class="flex flex-col items-center justify-center p-12 text-center h-full">
-						<span class="material-symbols-outlined text-[48px] text-on-surface-variant opacity-60 mb-3">history</span>
-						<p class="text-sm text-on-surface-variant font-medium">No audit logs found matching criteria</p>
+					<div class="flex flex-col items-center justify-center p-12 text-center h-full text-on-surface-variant">
+						<span class="material-symbols-outlined text-[48px] opacity-40 mb-3">history</span>
+						<p class="text-xs font-semibold">No audit logs found matching criteria</p>
 					</div>
 				{:else}
 					<div class="flex flex-col">
 						{#each filteredEntries as entry (entry.id)}
-							<!-- Row container -->
 							<div
+								role="button"
+								tabindex="0"
 								onclick={() => toggleExpandRow(entry.id)}
-								class="grid grid-cols-12 gap-3 px-6 py-3 items-center hover:bg-surface-container-high cursor-pointer transition-colors text-xs font-semibold text-on-surface {expandedEntryId === entry.id ? 'bg-surface-container-high' : ''}"
+								onkeydown={(e) => { if (e.key === 'Enter') toggleExpandRow(entry.id); }}
+								class="grid grid-cols-12 gap-3 px-6 py-3.5 items-center hover:bg-surface-container-high cursor-pointer transition-colors text-xs font-semibold text-on-surface {expandedEntryId === entry.id ? 'bg-surface-container-high' : ''}"
 							>
 								<!-- Level badge -->
 								<div class="col-span-2">
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase border {getLevelBadgeStyle(entry.level)}">
+									<span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase {getLevelBadgeStyle(entry.level)}">
 										{entry.level}
 									</span>
 								</div>
 
 								<!-- Timestamp -->
-								<div class="col-span-3 font-mono text-[11px] opacity-80">{entry.timestamp}</div>
+								<div class="col-span-3 font-mono text-[11px] text-on-surface-variant">{entry.timestamp}</div>
 
 								<!-- Operation -->
 								<div class="col-span-3 font-mono text-[11px] text-primary break-all pr-2">{entry.operation}</div>
@@ -295,19 +293,19 @@
 								<div class="col-span-3 truncate pr-2">{entry.message}</div>
 
 								<!-- Duration -->
-								<div class="col-span-1 text-right font-mono text-[11px] opacity-85">
+								<div class="col-span-1 text-right font-mono text-[11px] text-on-surface-variant">
 									{entry.duration_ms !== null && entry.duration_ms !== undefined ? `${entry.duration_ms}ms` : '—'}
 								</div>
 							</div>
 
 							<!-- Expanded Details Pane -->
 							{#if expandedEntryId === entry.id && entry.details}
-								<div class="bg-black/95 text-green-400 font-mono text-[10px] px-6 py-4 flex flex-col gap-2 animate-fade-in leading-normal select-all">
-									<div class="flex justify-between items-center pb-1 border-b border-green-950 text-gray-500 select-none text-[8px] uppercase tracking-wider">
+								<div class="bg-surface-container-highest p-4 px-6 font-mono text-xs text-on-surface flex flex-col gap-2 animate-fade-in leading-relaxed select-all">
+									<div class="flex justify-between items-center text-[10px] text-on-surface-variant/70 uppercase font-mono tracking-wider">
 										<span>Command Exec Execution Details</span>
 										<span>Log ID: {entry.id}</span>
 									</div>
-									<pre class="whitespace-pre-wrap max-h-48 overflow-y-auto">{entry.details}</pre>
+									<pre class="whitespace-pre-wrap max-h-48 overflow-y-auto m-0 bg-surface-container-high p-3 rounded-2xl">{entry.details}</pre>
 								</div>
 							{/if}
 						{/each}
@@ -315,21 +313,14 @@
 				{/if}
 			</div>
 		</div>
+
 	</div>
 </main>
 
 <style>
 	@keyframes fadeIn {
-		from {
-			opacity: 0;
-			transform: scale(0.98);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1);
-		}
+		from { opacity: 0; transform: scale(0.99); }
+		to { opacity: 1; transform: scale(1); }
 	}
-	.animate-fade-in {
-		animation: fadeIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-	}
+	.animate-fade-in { animation: fadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 </style>

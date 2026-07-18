@@ -236,7 +236,7 @@
 						{#each themeSeeds as seed}
 							<button
 								onclick={() => applyThemeColor(seed.hex)}
-								class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-surface-container-high hover:bg-surface-container-highest transition-all group {selectedSeedColor === seed.hex ? 'ring-2 ring-primary' : ''}"
+								class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all group {selectedSeedColor === seed.hex ? 'bg-primary-container/40' : 'bg-surface-container-high hover:bg-surface-container-highest'}"
 							>
 								<span class="w-4 h-4 rounded-full shadow-xs" style="background-color: {seed.hex}"></span>
 								<span class="text-on-surface group-hover:text-primary transition-colors">{seed.name}</span>

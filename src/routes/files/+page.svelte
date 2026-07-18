@@ -555,7 +555,7 @@
 							{#each filteredFiles as file (file.name)}
 								<button
 									onclick={() => handleItemClick(file)}
-									class="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-container-high/40 hover:bg-surface-container-highest transition-all group text-center {selectedFile?.name === file.name ? 'ring-2 ring-primary bg-primary/10' : ''}"
+									class="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group text-center {selectedFile?.name === file.name ? 'bg-primary-container/30' : 'bg-surface-container-high/40 hover:bg-surface-container-highest'}"
 								>
 									<span class="material-symbols-outlined text-[36px] {file.is_dir ? 'text-amber-400' : 'text-primary/80'}">
 										{getFileIcon(file.name, file.is_dir)}

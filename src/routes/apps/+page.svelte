@@ -594,8 +594,8 @@
 		<div class="flex flex-1 gap-5 overflow-hidden min-h-0">
 			<!-- Packages List Column -->
 			<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container p-5 shadow-sm">
-				<!-- List Header Select All -->
-				<div class="flex items-center justify-between pb-3 mb-2 shrink-0 border-b border-outline-variant/10">
+				<!-- Package Header Bar -->
+				<div class="flex items-center justify-between pb-3 mb-2 shrink-0 text-xs font-bold text-on-surface">
 					<div class="flex items-center gap-2">
 						<span class="text-xs font-bold text-on-surface">
 							Packages ({filteredPackages.length})
