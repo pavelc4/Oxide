@@ -332,37 +332,37 @@
 			<!-- Main Device Overview Section (Mock Phone + Info Cards) -->
 			<section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 				
-				<!-- Left Column: Modern Mock Smartphone Frame (Col 4) -->
-				<div class="lg:col-span-4 flex flex-col items-center justify-center rounded-[32px] bg-surface-container p-6 relative overflow-hidden shadow-sm min-h-[380px]">
-					<div class="relative w-52 h-[340px] rounded-[42px] bg-neutral-900 p-3 shadow-2xl flex flex-col justify-between border-4 border-neutral-800">
+				<!-- Left Column: Modern Sleek Smartphone Mockup Frame (Col 4) -->
+				<div class="lg:col-span-4 flex flex-col items-center justify-center rounded-[32px] bg-surface-container p-6 relative overflow-hidden shadow-sm min-h-[400px]">
+					<div class="relative w-48 h-[370px] rounded-[44px] bg-neutral-950 p-2.5 shadow-2xl flex flex-col justify-between border-[5px] border-neutral-800 ring-1 ring-neutral-700/50">
 						<!-- Phone Notch / Camera Pill -->
-						<div class="w-20 h-4 bg-neutral-950 rounded-full mx-auto flex items-center justify-center gap-2 px-2 z-20">
+						<div class="w-16 h-3.5 bg-neutral-900 rounded-full mx-auto flex items-center justify-center gap-1.5 px-2 z-20 mt-0.5">
 							<span class="w-1.5 h-1.5 rounded-full bg-neutral-700"></span>
-							<span class="w-2.5 h-2.5 rounded-full bg-neutral-800"></span>
+							<span class="w-2 h-2 rounded-full bg-neutral-800"></span>
 						</div>
 
 						<!-- Smartphone Screen Content -->
-						<div class="flex-1 rounded-[30px] bg-gradient-to-br from-neutral-900 via-neutral-950 to-primary/20 p-4 flex flex-col justify-between relative overflow-hidden my-1">
+						<div class="flex-1 rounded-[34px] bg-gradient-to-br from-neutral-900 via-neutral-950 to-primary/25 p-4 flex flex-col justify-between relative overflow-hidden my-1 shadow-inner">
 							<!-- Screen Top Bar -->
-							<div class="flex justify-between items-center text-[10px] font-mono text-neutral-400 z-10">
+							<div class="flex justify-between items-center text-[9px] font-mono text-neutral-400 z-10">
 								<span>10:00</span>
-								<div class="flex items-center gap-1.5">
-									<span class="material-symbols-outlined text-[12px]">wifi</span>
-									<span class="material-symbols-outlined text-[12px] text-emerald-400">battery_5_bar</span>
+								<div class="flex items-center gap-1">
+									<span class="material-symbols-outlined text-[11px]">wifi</span>
+									<span class="material-symbols-outlined text-[11px] text-emerald-400">battery_5_bar</span>
 								</div>
 							</div>
 
 							<!-- Center Screen Brand Watermark -->
 							<div class="flex flex-col items-center justify-center gap-2 my-auto text-center z-10">
 								<div class="w-12 h-12 rounded-2xl bg-primary/20 text-primary flex items-center justify-center shadow-lg backdrop-blur-md">
-									<span class="material-symbols-outlined text-[26px]">smartphone</span>
+									<span class="material-symbols-outlined text-[24px]">smartphone</span>
 								</div>
-								<span class="text-xs font-bold text-on-surface tracking-wide">{activeDevice.name}</span>
-								<span class="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase">Connected ({activeDevice.connection})</span>
+								<span class="text-xs font-bold text-on-surface tracking-wide px-2 truncate w-full">{activeDevice.name}</span>
+								<span class="text-[8px] font-mono text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">CONNECTED ({activeDevice.connection})</span>
 							</div>
 
 							<!-- Screen Bottom Indicator -->
-							<div class="w-16 h-1 bg-neutral-600/60 rounded-full mx-auto z-10"></div>
+							<div class="w-14 h-1 bg-neutral-500/50 rounded-full mx-auto z-10"></div>
 						</div>
 					</div>
 				</div>
@@ -500,13 +500,13 @@
 				</div>
 			</header>
 
-			<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest">
 					<div class="flex justify-between items-center mb-1">
 						<span class="text-xs font-semibold text-on-surface-variant">CPU Usage</span>
 						<span class="text-sm font-bold text-emerald-400 font-mono">{currentCpu}%</span>
 					</div>
-					<Sparkline data={dataCpu} color="#4ADE80" height={60} />
+					<Sparkline data={dataCpu} color="#4ADE80" height={65} />
 				</div>
 
 				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest">
@@ -514,15 +514,7 @@
 						<span class="text-xs font-semibold text-on-surface-variant">RAM Memory ({currentMem}%)</span>
 						<span class="text-sm font-bold text-purple-400 font-mono">{memStr}</span>
 					</div>
-					<Sparkline data={dataMem} color="#A78BFA" height={60} />
-				</div>
-
-				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest">
-					<div class="flex justify-between items-center mb-1">
-						<span class="text-xs font-semibold text-on-surface-variant font-mono">FPS ({topPackageName})</span>
-						<span class="text-sm font-bold text-amber-400 font-mono">{currentFps > 0 ? `${currentFps} FPS` : '60 FPS'}</span>
-					</div>
-					<Sparkline data={dataFps} color="#F97316" height={60} />
+					<Sparkline data={dataMem} color="#A78BFA" height={65} />
 				</div>
 			</div>
 		</section>
