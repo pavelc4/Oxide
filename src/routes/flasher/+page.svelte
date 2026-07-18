@@ -44,7 +44,8 @@
 	// Manual Flash & Sideload State
 	let manualPartition = $state('boot');
 	let manualImagePath = $state('');
-	let targetSlot = $state<'active' | 'a' | 'b' | 'both'>('active');
+	let isDraggingImg = $state(false);
+	let isDraggingZip = $state(false);
 	let sideloadZipPath = $state('');
 	let flashingManual = $state(false);
 	let sideloading = $state(false);
@@ -381,6 +382,24 @@
 		romFolderPath = '/home/user/downloads/Pixel_8_Factory_ROM';
 		scanRomFolder();
 	}
+
+	function handleImgDrop(e: DragEvent) {
+		e.preventDefault();
+		isDraggingImg = false;
+		if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+			const file = e.dataTransfer.files[0];
+			manualImagePath = (file as unknown as { path?: string }).path || file.name;
+		}
+	}
+
+	function handleZipDrop(e: DragEvent) {
+		e.preventDefault();
+		isDraggingZip = false;
+		if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+			const file = e.dataTransfer.files[0];
+			sideloadZipPath = (file as unknown as { path?: string }).path || file.name;
+		}
+	}
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
@@ -391,7 +410,7 @@
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
-					class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95"
+					class="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 					title="Back to dashboard"
 				>
 					<span class="material-symbols-outlined text-[20px]">arrow_back</span>
@@ -400,7 +419,7 @@
 					<div class="flex items-center gap-3">
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Flasher Studio</h2>
 						{#if !isTauri}
-							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
+							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
 						{/if}
 					</div>
 					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Fastboot partitioning, ROM flasher planner & ADB sideload manager</p>
@@ -499,7 +518,7 @@
 
 				<!-- Tab 1: ROM Flash Planner -->
 				{#if activeTab === 'rom_planner'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col gap-5 overflow-hidden min-h-0 shadow-sm">
+					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col gap-5 overflow-hidden min-h-0 shadow-sm">
 						<div>
 							<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
 								<span class="material-symbols-outlined text-primary">auto_mode</span>
@@ -513,19 +532,19 @@
 							<label for="rom-folder-input" class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">ROM Directory Path</label>
 							<div class="flex items-center gap-2">
 								<div class="relative flex-1">
-									<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">folder</span>
+									<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">folder</span>
 									<input
 										id="rom-folder-input"
 										type="text"
 										bind:value={romFolderPath}
 										placeholder="e.g. /home/user/Downloads/Pixel8_Factory_ROM"
-										class="w-full bg-surface-container-high rounded-xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+										class="w-full bg-surface-container-high rounded-2xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all shadow-xs"
 										disabled={scanningRom || executingPlan}
 									/>
 								</div>
 								<button
 									onclick={scanRomFolder}
-									class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-5 py-2.5 text-xs font-bold transition-all disabled:opacity-40 shrink-0 shadow-sm"
+									class="rounded-2xl bg-primary text-on-primary hover:brightness-110 px-5 py-2.5 text-xs font-bold transition-all disabled:opacity-40 shrink-0 shadow-sm"
 									disabled={scanningRom || executingPlan || !romFolderPath.trim()}
 								>
 									{#if scanningRom}
@@ -555,14 +574,17 @@
 
 								<div class="flex-1 bg-surface-container-low rounded-2xl overflow-y-auto p-2 flex flex-col gap-1.5 shadow-inner">
 									{#each scannedPlan.steps as step, idx (idx)}
-										<label class="flex items-center justify-between p-3 rounded-xl hover:bg-surface-container-high/60 transition-all cursor-pointer {currentFlashStepIndex === idx ? 'bg-primary/15 font-bold' : ''}">
+										<div
+											role="button"
+											tabindex="0"
+											onclick={() => { if (!executingPlan) step.selected = !step.selected; }}
+											onkeydown={(e) => { if (e.key === 'Enter' && !executingPlan) step.selected = !step.selected; }}
+											class="flex items-center justify-between p-3 rounded-xl hover:bg-surface-container-high transition-all cursor-pointer {step.selected !== false ? 'bg-surface-container-high/60' : 'opacity-50'} {currentFlashStepIndex === idx ? 'bg-primary-container/20 ring-1 ring-primary/40 font-bold' : ''}"
+										>
 											<div class="flex items-center gap-3">
-												<input
-													type="checkbox"
-													bind:checked={step.selected}
-													disabled={executingPlan}
-													class="w-4 h-4 rounded text-primary focus:ring-primary/50"
-												/>
+												<div class="flex h-5 w-5 items-center justify-center rounded-md {step.selected !== false ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-on-surface-variant/50'}">
+													<span class="material-symbols-outlined text-[14px]">{step.selected !== false ? 'check' : ''}</span>
+												</div>
 												<div>
 													<span class="text-xs font-bold font-mono text-on-surface">{step.partition}</span>
 													<span class="text-[10px] text-on-surface-variant/70 font-mono block">{step.image_file}</span>
@@ -571,13 +593,13 @@
 											{#if step.size}
 												<span class="text-[11px] font-mono text-on-surface-variant px-2.5 py-0.5 bg-surface-container rounded-md">{step.size}</span>
 											{/if}
-										</label>
+										</div>
 									{/each}
 								</div>
 
 								<!-- Progress Bar -->
 								{#if executingPlan}
-									<div class="flex flex-col gap-1.5 shrink-0 bg-primary/10 p-3.5 rounded-xl">
+									<div class="flex flex-col gap-1.5 shrink-0 bg-primary/10 p-3.5 rounded-2xl">
 										<div class="flex justify-between text-xs font-bold text-primary">
 											<span>Flashing step {currentFlashStepIndex + 1} of {scannedPlan.steps.length}...</span>
 											<span>{flashProgress}%</span>
@@ -591,7 +613,7 @@
 								<!-- Action Execution -->
 								<button
 									onclick={executeFlashPlan}
-									class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 shrink-0 w-full"
+									class="rounded-2xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 shrink-0 w-full"
 									disabled={executingPlan || !selectedDevice}
 								>
 									{#if executingPlan}
@@ -607,7 +629,7 @@
 
 				<!-- Tab 2: Single Partition Flasher -->
 				{#if activeTab === 'manual_flasher'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-5 overflow-y-auto shadow-sm">
+					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 overflow-y-auto shadow-sm">
 						<div class="flex flex-col gap-5">
 							<div>
 								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
@@ -624,7 +646,7 @@
 									{#each partitionPresets as p}
 										<button
 											onclick={() => handlePresetClick(p)}
-											class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all {manualPartition === p ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'}"
+											class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all {manualPartition === p ? 'bg-primary text-on-primary shadow-xs' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'}"
 										>
 											{p}
 										</button>
@@ -641,7 +663,7 @@
 										type="text"
 										bind:value={manualPartition}
 										placeholder="e.g. boot"
-										class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+										class="bg-surface-container-high rounded-2xl px-3.5 py-2.5 text-xs font-mono font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
 										disabled={flashingManual}
 									/>
 								</div>
@@ -649,23 +671,38 @@
 								<div class="md:col-span-2 flex flex-col gap-1.5">
 									<label for="img-file-path" class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Image File Path (.img)</label>
 									<div class="relative">
-										<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">image</span>
+										<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">image</span>
 										<input
 											id="img-file-path"
 											type="text"
 											bind:value={manualImagePath}
 											placeholder="/path/to/image.img"
-											class="w-full bg-surface-container-high rounded-xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+											class="w-full bg-surface-container-high rounded-2xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
 											disabled={flashingManual}
 										/>
 									</div>
 								</div>
 							</div>
+
+							<!-- Image Drag & Drop Dropzone -->
+							<div
+								role="region"
+								aria-label="Partition Image Dropzone"
+								ondragover={(e) => { e.preventDefault(); isDraggingImg = true; }}
+								ondragleave={() => (isDraggingImg = false)}
+								ondrop={handleImgDrop}
+								class="flex flex-col items-center justify-center p-6 rounded-2xl transition-all cursor-pointer text-center gap-2 {isDraggingImg ? 'bg-primary/20 scale-[1.01]' : 'bg-surface-container-high hover:bg-surface-container-highest'}"
+							>
+								<span class="material-symbols-outlined text-[26px] text-primary">{isDraggingImg ? 'downloading' : 'cloud_upload'}</span>
+								<span class="text-xs font-bold text-on-surface">
+									{manualImagePath ? `Selected: ${manualImagePath}` : 'Drag & drop .IMG file here to set path'}
+								</span>
+							</div>
 						</div>
 
 						<button
 							onclick={manualFlashPartition}
-							class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 w-full"
+							class="rounded-2xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 w-full"
 							disabled={flashingManual || !selectedDevice || !manualImagePath.trim()}
 						>
 							{#if flashingManual}
@@ -682,7 +719,7 @@
 
 				<!-- Tab 3: ADB Sideload -->
 				{#if activeTab === 'sideload'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
+					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
 						<div class="flex flex-col gap-5">
 							<div>
 								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
@@ -692,33 +729,48 @@
 								<p class="text-xs text-on-surface-variant mt-1">Sideload OTA updates, system zip patches, or custom recovery packages when device is in Sideload Mode.</p>
 							</div>
 
-							<div class="bg-primary/5 rounded-2xl p-4 flex items-start gap-3">
+							<div class="bg-primary/10 rounded-2xl p-4 flex items-start gap-3">
 								<span class="material-symbols-outlined text-primary text-[22px] shrink-0 mt-0.5">info</span>
 								<div class="text-xs text-on-surface-variant">
 									<p class="font-bold text-on-surface">Entering Sideload Mode:</p>
-									<p class="mt-1">Make sure your phone is in Recovery Mode and select <code class="bg-surface-container-high px-1.5 py-0.5 rounded text-primary font-mono">Apply update from ADB</code>, or use the quick action button on the right side to reboot.</p>
+									<p class="mt-1 leading-relaxed">Make sure your phone is in Recovery Mode and select <code class="bg-surface-container-high px-2 py-0.5 rounded text-primary font-mono font-bold">Apply update from ADB</code>, or use the quick action button on the right side to reboot.</p>
 								</div>
 							</div>
 
 							<div class="flex flex-col gap-1.5">
 								<label for="zip-file-path" class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">ZIP Package Path (.zip)</label>
 								<div class="relative">
-									<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">archive</span>
+									<span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">archive</span>
 									<input
 										id="zip-file-path"
 										type="text"
 										bind:value={sideloadZipPath}
 										placeholder="/path/to/update.zip"
-										class="w-full bg-surface-container-high rounded-xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+										class="w-full bg-surface-container-high rounded-2xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
 										disabled={sideloading}
 									/>
 								</div>
+							</div>
+
+							<!-- ZIP Drag & Drop Dropzone -->
+							<div
+								role="region"
+								aria-label="Sideload Package Dropzone"
+								ondragover={(e) => { e.preventDefault(); isDraggingZip = true; }}
+								ondragleave={() => (isDraggingZip = false)}
+								ondrop={handleZipDrop}
+								class="flex flex-col items-center justify-center p-6 rounded-2xl transition-all cursor-pointer text-center gap-2 {isDraggingZip ? 'bg-primary/20 scale-[1.01]' : 'bg-surface-container-high hover:bg-surface-container-highest'}"
+							>
+								<span class="material-symbols-outlined text-[26px] text-primary">{isDraggingZip ? 'downloading' : 'archive'}</span>
+								<span class="text-xs font-bold text-on-surface">
+									{sideloadZipPath ? `Selected: ${sideloadZipPath}` : 'Drag & drop .ZIP update file here'}
+								</span>
 							</div>
 						</div>
 
 						<button
 							onclick={runSideload}
-							class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 w-full"
+							class="rounded-2xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 w-full"
 							disabled={sideloading || !selectedDevice || !sideloadZipPath.trim()}
 						>
 							{#if sideloading}
@@ -735,7 +787,7 @@
 
 				<!-- Tab 4: Fastboot Terminal Console -->
 				{#if activeTab === 'fastboot_console'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-4 overflow-hidden shadow-sm">
+					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-4 overflow-hidden shadow-sm">
 						<div>
 							<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
 								<span class="material-symbols-outlined text-primary">terminal</span>
@@ -763,18 +815,18 @@
 
 						<form onsubmit={(e) => { e.preventDefault(); executeCliCommand(); }} class="flex gap-2 shrink-0">
 							<div class="relative flex-1">
-								<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/80 font-mono text-xs font-bold select-none">$ fastboot</span>
+								<span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/80 font-mono text-xs font-bold select-none">$ fastboot</span>
 								<input
 									type="text"
 									bind:value={customCommand}
 									placeholder="getvar all"
-									class="bg-surface-container-high rounded-xl pl-24 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-full"
+									class="bg-surface-container-high rounded-2xl pl-24 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-full shadow-xs"
 									disabled={executingCli}
 								/>
 							</div>
 							<button
 								type="submit"
-								class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-5 py-2.5 text-xs font-bold transition-all disabled:opacity-50 shadow-sm"
+								class="rounded-2xl bg-primary text-on-primary hover:brightness-110 px-5 py-2.5 text-xs font-bold transition-all disabled:opacity-50 shadow-sm"
 								disabled={executingCli || !selectedDevice || !customCommand.trim()}
 							>
 								Send Command
@@ -788,7 +840,7 @@
 			<div class="lg:col-span-4 flex flex-col gap-4 overflow-y-auto">
 				
 				<!-- A/B Slot Manager Panel -->
-				<section class="rounded-[24px] bg-surface-container p-5 flex flex-col gap-4 shadow-sm">
+				<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
 					<div class="flex items-center justify-between">
 						<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
 							<span class="material-symbols-outlined text-primary text-[18px]">swap_horiz</span>
@@ -806,14 +858,14 @@
 					<div class="grid grid-cols-2 gap-2">
 						<button
 							onclick={() => setActiveSlot('a')}
-							class="rounded-xl py-2.5 px-3 text-xs font-bold transition-all {activeSlot === 'a' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}"
+							class="rounded-2xl py-2.5 px-3 text-xs font-bold transition-all {activeSlot === 'a' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}"
 							disabled={loadingSlot || !selectedDevice}
 						>
 							Switch Slot A
 						</button>
 						<button
 							onclick={() => setActiveSlot('b')}
-							class="rounded-xl py-2.5 px-3 text-xs font-bold transition-all {activeSlot === 'b' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}"
+							class="rounded-2xl py-2.5 px-3 text-xs font-bold transition-all {activeSlot === 'b' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}"
 							disabled={loadingSlot || !selectedDevice}
 						>
 							Switch Slot B
@@ -822,7 +874,7 @@
 
 					<button
 						onclick={continueBoot}
-						class="rounded-xl bg-surface-container-highest text-on-surface hover:bg-primary hover:text-on-primary transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40"
+						class="rounded-2xl bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40 shadow-xs"
 						disabled={!selectedDevice}
 					>
 						Continue Normal Booting
@@ -830,7 +882,7 @@
 				</section>
 
 				<!-- Device State & Quick Reboot Actions -->
-				<section class="rounded-[24px] bg-surface-container p-5 flex flex-col gap-3 shadow-sm">
+				<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-3 shadow-sm">
 					<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2 mb-1">
 						<span class="material-symbols-outlined text-primary text-[18px]">power_settings_new</span>
 						Reboot Controls
@@ -839,14 +891,14 @@
 					<div class="grid grid-cols-2 gap-2">
 						<button
 							onclick={() => rebootDevice('normal')}
-							class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40"
+							class="rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40 shadow-xs"
 							disabled={!selectedDevice}
 						>
 							System
 						</button>
 						<button
 							onclick={() => rebootDevice('bootloader')}
-							class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40"
+							class="rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40 shadow-xs"
 							disabled={!selectedDevice}
 						>
 							Bootloader
@@ -855,7 +907,7 @@
 
 					<button
 						onclick={() => rebootDevice('recovery')}
-						class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40 w-full"
+						class="rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40 w-full shadow-xs"
 						disabled={!selectedDevice}
 					>
 						Reboot Recovery (Sideload)
@@ -863,15 +915,15 @@
 				</section>
 
 				<!-- Safety & Reset Action -->
-				<section class="rounded-[24px] bg-error/5 p-5 flex flex-col gap-3 shadow-sm">
+				<section class="rounded-[32px] bg-error/10 p-6 flex flex-col gap-3 shadow-sm">
 					<h3 class="text-xs font-bold text-error uppercase tracking-wider flex items-center gap-2">
 						<span class="material-symbols-outlined text-error text-[18px]">warning</span>
 						Dangerous Wipe Actions
 					</h3>
-					<p class="text-[11px] text-on-surface-variant">Perform factory reset by clearing user data & cache partitions.</p>
+					<p class="text-[11px] text-on-surface-variant leading-relaxed">Perform factory reset by clearing user data & cache partitions.</p>
 					<button
 						onclick={wipeUserdata}
-						class="rounded-xl bg-error/15 text-error hover:bg-error/25 transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40"
+						class="rounded-2xl bg-error/15 text-error hover:bg-error/25 transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40 shadow-xs"
 						disabled={!selectedDevice}
 					>
 						Wipe Userdata (Factory Reset)
