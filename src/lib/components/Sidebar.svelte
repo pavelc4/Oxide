@@ -20,7 +20,7 @@
           { href: '/process-manager', icon: 'memory', label: 'Process' },
           { href: '/shell', icon: 'terminal', label: 'Shell' },
           { href: '/flasher', icon: 'bolt', label: 'Flasher' },
-          { href: '/wireless', icon: 'settings_input_antenna', label: 'Wireless' },
+          { href: '/logcat', icon: 'subtitles', label: 'Logcat' },
           { href: '/audit', icon: 'history', label: 'Audit' },
         ] as const as item}
           <a

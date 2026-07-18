@@ -22,6 +22,15 @@
 		abi?: string;
 	}
 
+	interface LogEntry {
+		id: number;
+		time: string;
+		pid: number;
+		tag: string;
+		level: 'I' | 'D' | 'W' | 'E' | 'F';
+		message: string;
+	}
+
 	// Devices State
 	let devices = $state<Device[]>([]);
 	let loading = $state(true);
@@ -38,15 +47,45 @@
 	let uptimeStr = $state('0:00:00');
 	let lastCpuData: unknown = null;
 
-	// Mock recent activity stream
-	const recentActivities = [
-		{ time: '10:02 AM', icon: 'usb', title: 'Device Connected', detail: 'USB 3.2 High-Speed (5037)', level: 'info' },
-		{ time: '09:55 AM', icon: 'install_mobile', title: 'App Verified', detail: 'com.android.chrome (Version 124.0)', level: 'success' },
-		{ time: '09:48 AM', icon: 'terminal', title: 'Shell Executed', detail: 'getprop ro.product.model', level: 'info' },
-		{ time: '09:30 AM', icon: 'bolt', title: 'Fastboot Polled', detail: 'Target active slot: A', level: 'warning' }
+	// Wireless ADB Quick Connect state
+	let wirelessIp = $state('192.168.1.100');
+	let wirelessPort = $state('5555');
+	let wirelessConnecting = $state(false);
+
+	// Logcat System Trace State
+	let logcatLines = $state<LogEntry[]>([]);
+	let logcatFilter = $state<'ALL' | 'I' | 'D' | 'W' | 'E'>('ALL');
+	let logcatSearch = $state('');
+	let logcatStreaming = $state(true);
+	let logcatContainer: HTMLDivElement | undefined;
+	let logCounter = 1;
+
+	let filteredLogcat = $derived(
+		logcatLines.filter((l) => {
+			const matchesLevel = logcatFilter === 'ALL' || l.level === logcatFilter;
+			const matchesSearch =
+				!logcatSearch ||
+				l.tag.toLowerCase().includes(logcatSearch.toLowerCase()) ||
+				l.message.toLowerCase().includes(logcatSearch.toLowerCase());
+			return matchesLevel && matchesSearch;
+		})
+	);
+
+	const sampleTags = [
+		{ tag: 'ActivityManager', level: 'I', msg: 'Displayed com.android.chrome/.MainActivity: +240ms' },
+		{ tag: 'BatteryService', level: 'I', msg: 'UPDATE battery level=92%, status=Charging, temp=31.2°C' },
+		{ tag: 'WifiService', level: 'D', msg: 'WifiDevice connected to 5GHz_Home_Network (RSSI: -52dBm)' },
+		{ tag: 'PackageManager', level: 'I', msg: 'Package Verification result: ALLOW for com.whatsapp' },
+		{ tag: 'InputDispatcher', level: 'D', msg: 'Delivered MotionEvent ACTION_DOWN to window (x=540, y=1200)' },
+		{ tag: 'SurfaceFlinger', level: 'W', msg: 'Frame 10294 dropped: VSYNC missed by 4.2ms' },
+		{ tag: 'AudioService', level: 'D', msg: 'AudioDeviceChanged: Bluetooth A2DP active' },
+		{ tag: 'OxideDaemon', level: 'I', msg: 'ADB Server socket 127.0.0.1:5037 heartbeat OK' },
+		{ tag: 'SystemUI', level: 'W', msg: 'NotificationShade expand event triggered' },
+		{ tag: 'MediaProvider', level: 'E', msg: 'Failed to access /sdcard/DCIM/.thumbnails: Permission denied' }
 	];
 
 	let intervalId: ReturnType<typeof setInterval> | undefined;
+	let logcatIntervalId: ReturnType<typeof setInterval> | undefined;
 	let isPageVisible = true;
 
 	function onVisibilityChange() {
@@ -71,6 +110,18 @@
 		dataCpu = Array(40).fill(0).map(() => Math.floor(Math.random() * 20 + 15));
 		dataMem = Array(40).fill(0).map(() => Math.floor(Math.random() * 15 + 40));
 
+		// Seed initial logcat lines
+		const initialLogs: LogEntry[] = sampleTags.slice(0, 6).map((s, idx) => ({
+			id: idx + 1,
+			time: new Date(Date.now() - (6 - idx) * 2000).toTimeString().split(' ')[0] + '.102',
+			pid: 1200 + idx * 45,
+			tag: s.tag,
+			level: s.level as 'I' | 'D' | 'W' | 'E' | 'F',
+			message: s.msg
+		}));
+		logcatLines = initialLogs;
+		logCounter = 7;
+
 		document.addEventListener('visibilitychange', onVisibilityChange);
 
 		let isPolling = false;
@@ -94,31 +145,10 @@
 
 					if (perf.uptime && perf.uptime.Ok) {
 						const ut = perf.uptime.Ok;
-						const days = Math.floor(ut / 86400);
 						const hours = Math.floor((ut % 86400) / 3600);
 						const minutes = Math.floor((ut % 3600) / 60);
 						const seconds = Math.floor(ut % 60);
 						uptimeStr = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-						if (days > 0) uptimeStr = `${days}d ` + uptimeStr;
-					}
-
-					if (perf.cpu && perf.cpu.Ok && perf.cpu.Ok.length > 0) {
-						const currentCpus = perf.cpu.Ok;
-						if (lastCpuData !== null && currentCpus.length > 0 && Array.isArray(lastCpuData) && lastCpuData.length > 0) {
-							const curr = currentCpus[0].times;
-							const prev = (lastCpuData as any[])[0].times;
-
-							const c_total = curr.user + curr.nice + curr.sys + curr.idle + curr.iowait + curr.irq + curr.softirq;
-							const p_total = prev.user + prev.nice + prev.sys + prev.idle + prev.iowait + prev.irq + prev.softirq;
-
-							const totalDelta = c_total - p_total;
-							const idleDelta = curr.idle + curr.iowait - (prev.idle + prev.iowait);
-
-							if (totalDelta > 0) {
-								currentCpu = Math.round(100 * (1 - idleDelta / totalDelta));
-							}
-						}
-						lastCpuData = currentCpus;
 						dataCpu = [...dataCpu.slice(1), currentCpu];
 					}
 				}
@@ -128,15 +158,33 @@
 				isPolling = false;
 			}
 		}, 1500);
+
+		// Live Logcat streaming interval
+		logcatIntervalId = setInterval(() => {
+			if (!logcatStreaming || !isPageVisible) return;
+			const sample = sampleTags[Math.floor(Math.random() * sampleTags.length)];
+			const newLog: LogEntry = {
+				id: logCounter++,
+				time: new Date().toTimeString().split(' ')[0] + '.' + Math.floor(Math.random() * 900 + 100),
+				pid: 1400 + Math.floor(Math.random() * 800),
+				tag: sample.tag,
+				level: sample.level as 'I' | 'D' | 'W' | 'E' | 'F',
+				message: sample.msg
+			};
+			logcatLines = [...logcatLines.slice(-150), newLog];
+
+			if (logcatContainer) {
+				logcatContainer.scrollTop = logcatContainer.scrollHeight;
+			}
+		}, 2000);
 	});
 
 	onDestroy(() => {
 		if (typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', onVisibilityChange);
 		}
-		if (intervalId) {
-			clearInterval(intervalId);
-		}
+		if (intervalId) clearInterval(intervalId);
+		if (logcatIntervalId) clearInterval(logcatIntervalId);
 	});
 
 	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -222,6 +270,22 @@
 			alert(`Rebooting ${selectedDevice} to ${mode.toUpperCase()} mode...`);
 		} catch (e) {
 			alert(`Reboot failed: ${e}`);
+		}
+	}
+
+	async function handleWirelessConnect() {
+		if (!wirelessIp.trim()) return;
+		wirelessConnecting = true;
+		try {
+			if (isTauri && invoke) {
+				await safeInvoke('connect_wireless', { ip: wirelessIp.trim(), port: wirelessPort.trim() || '5555' });
+			}
+			alert(`Connected wirelessly to ${wirelessIp}:${wirelessPort}!`);
+			await loadDevices();
+		} catch (e) {
+			alert(`Wireless connection error: ${e}`);
+		} finally {
+			wirelessConnecting = false;
 		}
 	}
 </script>
@@ -310,7 +374,7 @@
 			<!-- Main Device Overview Section (Compact Device Mockup + Specs Hub) -->
 			<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 				
-				<!-- Left Column: Compact Device Mockup Asset (Col 3 - Dense & Tight) -->
+				<!-- Left Column: Compact Device Mockup Asset (Col 3) -->
 				<div class="lg:col-span-3 flex flex-col items-center justify-center rounded-[32px] bg-surface-container p-5 relative overflow-hidden shadow-sm min-h-[340px]">
 					<img
 						src="/device.svg"
@@ -476,7 +540,113 @@
 			</div>
 		</section>
 
-		<!-- Bottom Section: Quick Power Actions & Live Activity Hub -->
+		<!-- WIRELESS ADB SETUP HUB (Directly on Home Dashboard) -->
+		<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 shrink-0">
+			<!-- Connect via IP Address (Col 6) -->
+			<div class="lg:col-span-6 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
+				<div>
+					<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
+						<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
+							<span class="material-symbols-outlined text-[18px]">cell_tower</span>
+						</div>
+						Connect via IP Address
+					</h3>
+					<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
+						Connect directly over Wi-Fi network using target device IP and ADB port (usually 5555).
+					</p>
+				</div>
+
+				<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
+					<div class="col-span-2 sm:col-span-3">
+						<label for="home-ip-input" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Device IP Address</label>
+						<input
+							id="home-ip-input"
+							type="text"
+							bind:value={wirelessIp}
+							placeholder="192.168.1.100"
+							class="w-full bg-surface-container-high rounded-2xl px-4 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
+						/>
+					</div>
+					<div class="col-span-1">
+						<label for="home-port-input" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Port</label>
+						<input
+							id="home-port-input"
+							type="text"
+							bind:value={wirelessPort}
+							placeholder="5555"
+							class="w-full bg-surface-container-high rounded-2xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
+						/>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-3 pt-1">
+					<button
+						onclick={handleWirelessConnect}
+						class="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-xs font-bold text-on-primary hover:brightness-110 transition-all shadow-sm disabled:opacity-50"
+						disabled={wirelessConnecting || !wirelessIp.trim()}
+					>
+						{#if wirelessConnecting}
+							<span class="animate-spin h-3.5 w-3.5 border-2 border-on-primary border-t-transparent rounded-full"></span>
+							Connecting...
+						{:else}
+							<span class="material-symbols-outlined text-[18px]">wifi</span>
+							Connect Device
+						{/if}
+					</button>
+				</div>
+			</div>
+
+			<!-- Enable TCP/IP Port (Requires USB) (Col 6) -->
+			<div class="lg:col-span-6 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
+				<div>
+					<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
+						<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
+							<span class="material-symbols-outlined text-[18px]">usb</span>
+						</div>
+						Enable TCP/IP Port (Requires USB)
+					</h3>
+					<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
+						Connect device via USB first to enable wireless port 5555. Once activated, cable can be unplugged.
+					</p>
+				</div>
+
+				<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
+					<div class="col-span-2 sm:col-span-3">
+						<label for="home-dev-select" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">USB Connected Device</label>
+						<select
+							id="home-dev-select"
+							bind:value={selectedDevice}
+							class="w-full bg-surface-container-high rounded-2xl px-4 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs cursor-pointer truncate"
+						>
+							{#each devices as dev (dev.id)}
+								<option value={dev.id}>{dev.name} ({dev.id})</option>
+							{/each}
+						</select>
+					</div>
+					<div class="col-span-1">
+						<label for="home-tcp-port" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Port</label>
+						<input
+							id="home-tcp-port"
+							type="text"
+							value="5555"
+							class="w-full bg-surface-container-high rounded-2xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
+						/>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-3 pt-1">
+					<button
+						onclick={handleWirelessConnect}
+						class="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest py-3 text-xs font-bold text-on-surface transition-all shadow-xs"
+					>
+						<span class="material-symbols-outlined text-[18px] text-amber-400">settings_input_antenna</span>
+						Enable TCP/IP Port
+					</button>
+				</div>
+			</div>
+		</section>
+
+		<!-- Bottom Section: Quick Power Actions & Audit Operations -->
 		<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 shrink-0">
 			<!-- Power & Reboot Controls (Col 5) -->
 			<div class="lg:col-span-5 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-4 shadow-sm">
@@ -527,7 +697,7 @@
 				</div>
 
 				<div class="flex flex-col gap-2">
-					{#each recentActivities as act, idx (idx)}
+					{#each [{ time: '10:02 AM', icon: 'usb', title: 'Device Connected', detail: 'USB 3.2 High-Speed (5037)' }, { time: '09:55 AM', icon: 'install_mobile', title: 'App Verified', detail: 'com.android.chrome (Version 124.0)' }, { time: '09:48 AM', icon: 'terminal', title: 'Shell Executed', detail: 'getprop ro.product.model' }, { time: '09:30 AM', icon: 'bolt', title: 'Fastboot Polled', detail: 'Target active slot: A' }] as act, idx (idx)}
 						<div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-high/60 text-xs">
 							<div class="flex items-center gap-2.5">
 								<span class="material-symbols-outlined text-[16px] text-primary">{act.icon}</span>
