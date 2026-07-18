@@ -2,6 +2,7 @@ mod core;
 mod device;
 mod theme;
 mod audit;
+mod fastboot;
 
 #[tauri::command]
 fn get_devices() -> Vec<device::types::DeviceSummary> {
@@ -98,6 +99,26 @@ fn wireless_disconnect(host: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn fastboot_list() -> Vec<fastboot::flasher::FastbootDevice> {
+    vec![]
+}
+
+#[tauri::command]
+fn fastboot_flash(_serial: String, _partition: String, _data: Vec<u8>) -> Result<(), String> {
+    Err("async command not wired yet".into())
+}
+
+#[tauri::command]
+fn fastboot_erase(_serial: String, _partition: String) -> Result<(), String> {
+    Err("async command not wired yet".into())
+}
+
+#[tauri::command]
+fn fastboot_reboot(_serial: String) -> Result<(), String> {
+    Err("async command not wired yet".into())
+}
+
+#[tauri::command]
 fn generate_theme(argb: u32) -> theme::generator::ThemeColors {
     theme::generator::from_color(argb)
 }
@@ -126,6 +147,10 @@ pub fn run() {
             get_perf,
             wireless_connect,
             wireless_disconnect,
+            fastboot_list,
+            fastboot_flash,
+            fastboot_erase,
+            fastboot_reboot,
             generate_theme,
             get_audit_log,
         ])
