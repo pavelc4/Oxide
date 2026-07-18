@@ -17,7 +17,6 @@
       { href: '/apps', icon: 'apps', label: 'Apps' },
       { href: '/process-manager', icon: 'memory', label: 'Process' },
       { href: '/shell', icon: 'terminal', label: 'Shell' },
-      { href: '/scrcpy', icon: 'screenshot_monitor', label: 'Mirror' },
       { href: '/flasher', icon: 'bolt', label: 'Flasher' },
       { href: '/wireless', icon: 'settings_input_antenna', label: 'Wireless' },
       { href: '/audit', icon: 'history', label: 'Audit' },
