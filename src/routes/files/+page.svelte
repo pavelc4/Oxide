@@ -337,14 +337,14 @@
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6">
+	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6 w-full">
 
 		<!-- Top Header & Device Selector -->
-		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2 border-b border-outline-variant/15">
+		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2 border-b border-outline-variant/15 w-full">
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
-					class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95"
+					class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shrink-0"
 					title="Back to dashboard"
 				>
 					<span class="material-symbols-outlined text-[20px]">arrow_back</span>
@@ -361,7 +361,7 @@
 			</div>
 
 			<!-- Right Control Group -->
-			<div class="flex items-center gap-3">
+			<div class="flex items-center gap-3 shrink-0">
 				<div class="flex items-center gap-2 bg-surface-container px-3.5 py-1.5 rounded-full border border-outline-variant/20 shadow-sm">
 					<span class="relative flex h-2.5 w-2.5">
 						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -409,11 +409,11 @@
 			</div>
 		{/if}
 
-		<!-- Main File Explorer Workspace Layout -->
-		<div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden min-h-0">
+		<!-- Main File Explorer Workspace Flex Layout -->
+		<div class="flex-1 flex gap-6 overflow-hidden min-h-0 w-full">
 
-			<!-- Left Quick Links Sidebar (Col 3) -->
-			<div class="lg:col-span-3 flex flex-col gap-4 overflow-y-auto shrink-0">
+			<!-- Left Quick Links Sidebar (Fixed Width w-60) -->
+			<div class="w-60 shrink-0 flex flex-col gap-4 overflow-y-auto hidden md:flex">
 				<div class="rounded-[24px] bg-surface-container p-4 border border-outline-variant/10 flex flex-col gap-2">
 					<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80 px-2">Storage Shortcuts</span>
 					
@@ -431,25 +431,25 @@
 				</div>
 			</div>
 
-			<!-- Middle Main File Browser Area (Col 9 or Col 6 if details panel open) -->
-			<div class="{selectedFile ? 'lg:col-span-6' : 'lg:col-span-9'} flex flex-col gap-4 overflow-hidden min-h-0 transition-all duration-300">
+			<!-- Middle Main File Browser Area (Takes 100% Remaining Width: flex-1 min-w-0) -->
+			<div class="flex-1 min-w-0 flex flex-col gap-4 overflow-hidden min-h-0">
 				
 				<!-- Action Toolbar & Breadcrumb Navigation Bar -->
-				<div class="flex flex-col gap-3 shrink-0">
+				<div class="flex flex-col gap-3 shrink-0 w-full">
 					
 					<!-- Navigation Bar -->
-					<div class="flex items-center gap-2 bg-surface-container p-2 rounded-2xl border border-outline-variant/10">
+					<div class="flex items-center gap-2 bg-surface-container p-2 rounded-2xl border border-outline-variant/10 w-full">
 						<button
 							onclick={navigateUp}
 							disabled={currentPath === '/'}
-							class="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest disabled:opacity-30 transition-all"
+							class="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest disabled:opacity-30 transition-all shrink-0"
 							title="Go Up One Directory"
 						>
 							<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
 						</button>
 
 						<!-- Breadcrumb Trail -->
-						<div class="flex-1 flex items-center gap-1 overflow-x-auto text-xs font-mono px-2">
+						<div class="flex-1 flex items-center gap-1 overflow-x-auto text-xs font-mono px-2 min-w-0">
 							<button
 								onclick={() => navigateTo('/')}
 								class="hover:text-primary font-bold transition-colors shrink-0"
@@ -457,10 +457,10 @@
 								/
 							</button>
 							{#each breadcrumbs as crumb, idx}
-								<span class="text-on-surface-variant/40">/</span>
+								<span class="text-on-surface-variant/40 shrink-0">/</span>
 								<button
 									onclick={() => navigateTo(crumb.path)}
-									class="hover:text-primary transition-colors whitespace-nowrap {idx === breadcrumbs.length - 1 ? 'text-primary font-bold' : 'text-on-surface-variant'}"
+									class="hover:text-primary transition-colors whitespace-nowrap shrink-0 {idx === breadcrumbs.length - 1 ? 'text-primary font-bold' : 'text-on-surface-variant'}"
 								>
 									{crumb.name}
 								</button>
@@ -477,11 +477,11 @@
 					</div>
 
 					<!-- Toolbar Actions & Search Bar -->
-					<div class="flex flex-wrap items-center justify-between gap-3">
+					<div class="flex flex-wrap items-center justify-between gap-3 w-full">
 						<div class="flex items-center gap-2">
 							<button
 								onclick={() => (showNewFolderModal = true)}
-								class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm"
+								class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm shrink-0"
 							>
 								<span class="material-symbols-outlined text-[16px]">create_new_folder</span>
 								New Folder
@@ -489,7 +489,7 @@
 
 							<button
 								onclick={() => (showPushModal = true)}
-								class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest text-xs font-bold transition-all border border-outline-variant/20"
+								class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest text-xs font-bold transition-all border border-outline-variant/20 shrink-0"
 							>
 								<span class="material-symbols-outlined text-[16px]">upload</span>
 								Upload File
@@ -504,12 +504,12 @@
 									type="text"
 									bind:value={searchQuery}
 									placeholder="Search files..."
-									class="bg-surface-container-high border border-outline-variant/30 rounded-xl pl-8 pr-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-40"
+									class="bg-surface-container-high border border-outline-variant/30 rounded-xl pl-8 pr-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-44"
 								/>
 							</div>
 
 							<!-- Grid/List toggle -->
-							<div class="flex bg-surface-container p-1 rounded-xl border border-outline-variant/10">
+							<div class="flex bg-surface-container p-1 rounded-xl border border-outline-variant/10 shrink-0">
 								<button
 									onclick={() => (viewMode = 'list')}
 									class="p-1 rounded-lg text-xs transition-all {viewMode === 'list' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}"
@@ -530,8 +530,8 @@
 
 				</div>
 
-				<!-- Files Display Container -->
-				<div class="flex-1 bg-surface-container rounded-[24px] p-4 border border-outline-variant/10 overflow-y-auto min-h-0">
+				<!-- Files Display Container (Expands Full Width) -->
+				<div class="flex-1 bg-surface-container rounded-[24px] p-5 border border-outline-variant/10 overflow-y-auto min-h-0 w-full">
 					{#if loadingFiles}
 						<div class="flex flex-col items-center justify-center h-48 gap-3 text-on-surface-variant">
 							<span class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></span>
@@ -543,34 +543,34 @@
 							<span class="text-xs font-bold">This directory is empty</span>
 						</div>
 					{:else if viewMode === 'list'}
-						<!-- Table List View -->
+						<!-- Full Width Table List View -->
 						<table class="w-full text-left border-collapse text-xs">
 							<thead>
 								<tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/15 pb-2">
-									<th class="pb-2 font-bold cursor-pointer" onclick={() => { sortBy = 'name'; sortAsc = !sortAsc; }}>Name</th>
-									<th class="pb-2 font-bold cursor-pointer hidden md:table-cell" onclick={() => { sortBy = 'size'; sortAsc = !sortAsc; }}>Size</th>
-									<th class="pb-2 font-bold cursor-pointer hidden lg:table-cell">Permissions</th>
-									<th class="pb-2 font-bold cursor-pointer text-right hidden sm:table-cell" onclick={() => { sortBy = 'modified'; sortAsc = !sortAsc; }}>Modified</th>
+									<th class="pb-2.5 font-bold cursor-pointer" onclick={() => { sortBy = 'name'; sortAsc = !sortAsc; }}>Name</th>
+									<th class="pb-2.5 font-bold cursor-pointer text-right w-28" onclick={() => { sortBy = 'size'; sortAsc = !sortAsc; }}>Size</th>
+									<th class="pb-2.5 font-bold cursor-pointer text-center w-28 hidden lg:table-cell">Permissions</th>
+									<th class="pb-2.5 font-bold cursor-pointer text-right w-40 hidden sm:table-cell" onclick={() => { sortBy = 'modified'; sortAsc = !sortAsc; }}>Modified</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-outline-variant/10">
 								{#each filteredFiles as file (file.name)}
 									<tr
 										onclick={() => handleItemClick(file)}
-										class="hover:bg-surface-container-high/60 transition-all cursor-pointer group {selectedFile?.name === file.name ? 'bg-primary/15' : ''}"
+										class="hover:bg-surface-container-high/60 transition-all cursor-pointer group {selectedFile?.name === file.name ? 'bg-primary/15 font-bold' : ''}"
 									>
 										<td class="py-2.5 pr-3">
 											<div class="flex items-center gap-3">
-												<span class="material-symbols-outlined text-[20px] {file.is_dir ? 'text-amber-400 font-fill' : 'text-primary/80'}">
+												<span class="material-symbols-outlined text-[22px] shrink-0 {file.is_dir ? 'text-amber-400 font-fill' : 'text-primary/80'}">
 													{getFileIcon(file.name, file.is_dir)}
 												</span>
-												<span class="font-semibold text-on-surface group-hover:text-primary transition-colors truncate max-w-xs">{file.name}</span>
+												<span class="font-semibold text-on-surface group-hover:text-primary transition-colors truncate">{file.name}</span>
 											</div>
 										</td>
-										<td class="py-2.5 text-on-surface-variant font-mono text-[11px] hidden md:table-cell">
+										<td class="py-2.5 text-on-surface-variant text-right font-mono text-[11px]">
 											{file.is_dir ? '—' : formatBytes(file.size)}
 										</td>
-										<td class="py-2.5 text-on-surface-variant/70 font-mono text-[10px] hidden lg:table-cell">
+										<td class="py-2.5 text-on-surface-variant/70 text-center font-mono text-[10px] hidden lg:table-cell">
 											{file.permissions}
 										</td>
 										<td class="py-2.5 text-on-surface-variant text-right font-mono text-[11px] hidden sm:table-cell">
@@ -582,11 +582,11 @@
 						</table>
 					{:else}
 						<!-- Grid View -->
-						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
 							{#each filteredFiles as file (file.name)}
 								<button
 									onclick={() => handleItemClick(file)}
-									class="flex flex-col items-center gap-2 p-3 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-highest transition-all border border-outline-variant/10 group text-center {selectedFile?.name === file.name ? 'ring-2 ring-primary bg-primary/10' : ''}"
+									class="flex flex-col items-center gap-2 p-3.5 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-highest transition-all border border-outline-variant/10 group text-center {selectedFile?.name === file.name ? 'ring-2 ring-primary bg-primary/10' : ''}"
 								>
 									<span class="material-symbols-outlined text-[36px] {file.is_dir ? 'text-amber-400' : 'text-primary/80'}">
 										{getFileIcon(file.name, file.is_dir)}
@@ -600,9 +600,9 @@
 				</div>
 			</div>
 
-			<!-- Right File Details Panel (Col 3 if file selected) -->
+			<!-- Right File Details Panel (Fixed Width w-72 when selected) -->
 			{#if selectedFile}
-				<div class="lg:col-span-3 rounded-[24px] bg-surface-container p-5 border border-outline-variant/10 flex flex-col justify-between gap-4 animate-fade-in shrink-0">
+				<div class="w-72 shrink-0 rounded-[24px] bg-surface-container p-5 border border-outline-variant/10 flex flex-col justify-between gap-4 animate-fade-in">
 					<div class="flex flex-col gap-4">
 						<div class="flex items-center justify-between">
 							<h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">File Properties</h3>
