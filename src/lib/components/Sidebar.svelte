@@ -15,6 +15,7 @@
     {#each [
       { href: '/', icon: 'devices', label: 'Devices' },
       { href: '/apps', icon: 'apps', label: 'Apps' },
+      { href: '/files', icon: 'folder_open', label: 'Files' },
       { href: '/process-manager', icon: 'memory', label: 'Process' },
       { href: '/shell', icon: 'terminal', label: 'Shell' },
       { href: '/flasher', icon: 'bolt', label: 'Flasher' },

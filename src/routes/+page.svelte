@@ -248,7 +248,7 @@
 	>
 		<header class="mb-8 flex justify-between items-center">
 			<h2 class="text-2xl font-bold tracking-tight text-on-surface flex items-center gap-4">
-				KIRA
+				OXIDE
 				{#if !isTauri}
 					<span class="text-xs bg-error text-on-error px-3 py-1 rounded-full font-medium tracking-normal"
 						>MOCK MODE</span
