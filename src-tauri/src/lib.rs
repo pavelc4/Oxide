@@ -3,6 +3,7 @@ mod device;
 mod theme;
 mod audit;
 mod fastboot;
+mod setup;
 
 #[tauri::command]
 fn get_devices() -> Vec<device::types::DeviceSummary> {
@@ -128,6 +129,16 @@ fn get_audit_log() -> Vec<audit::log::AuditEntry> {
     audit::log::AuditLog::all()
 }
 
+#[tauri::command]
+fn get_setup_status() -> setup::wizard::SetupStatus {
+    setup::wizard::check_status()
+}
+
+#[tauri::command]
+fn complete_setup() -> Result<(), String> {
+    setup::wizard::complete_setup()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -153,6 +164,8 @@ pub fn run() {
             fastboot_reboot,
             generate_theme,
             get_audit_log,
+            get_setup_status,
+            complete_setup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
