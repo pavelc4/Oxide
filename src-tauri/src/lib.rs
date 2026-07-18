@@ -96,6 +96,16 @@ fn rename_file(serial: String, src: String, dst: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_config() -> Result<core::config::AppConfig, String> {
+    core::config::AppConfig::load().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_config(config: core::config::AppConfig) -> Result<(), String> {
+    config.save().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_perf(serial: String) -> device::perf::monitor::PerfSnapshot {
     let mut d = device::state::connect_serial(&serial);
     device::perf::monitor::get_snapshot(&mut d)
@@ -169,6 +179,8 @@ pub fn run() {
             delete_file,
             create_dir,
             rename_file,
+            get_config,
+            save_config,
             get_perf,
             wireless_connect,
             wireless_disconnect,
