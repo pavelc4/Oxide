@@ -132,7 +132,7 @@ pub fn parse_df_output(output: &str) -> Option<StorageInfo> {
     Some(StorageInfo { total, used, free })
 }
 
-pub fn parse_meminfo_output(output: &str) -> Option<u64> {
+pub(crate) fn parse_meminfo_output(output: &str) -> Option<u64> {
     for line in output.lines() {
         if line.starts_with("MemTotal:") {
             let val = line.split_whitespace().nth(1)?;
