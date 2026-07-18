@@ -58,9 +58,7 @@ mod tests {
     #[test]
     fn test_detailed_format() {
         let err = OxideError::with_detail("get_info", "device offline", "no response");
-        assert_eq!(err.to_string(), "no response (device offline)");
-        // note: Display output for Detailed is: {0}: {1} ({2})
-        // wait let's check the Display impl
+        assert_eq!(err.to_string(), "get_info: device offline (no response)");
     }
 
     #[test]
