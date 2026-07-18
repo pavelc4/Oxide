@@ -384,10 +384,10 @@
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6">
+	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6 shadow-sm">
 
 		<!-- Top Navigation & Header -->
-		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2 border-b border-outline-variant/15">
+		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2">
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
@@ -400,7 +400,7 @@
 					<div class="flex items-center gap-3">
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Flasher Studio</h2>
 						{#if !isTauri}
-							<span class="text-[10px] bg-warning/15 text-warning border border-warning/30 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
+							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
 						{/if}
 					</div>
 					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Fastboot partitioning, ROM flasher planner & ADB sideload manager</p>
@@ -409,7 +409,7 @@
 
 			<!-- Right Control Group: Active Device Picker & Refresh -->
 			<div class="flex items-center gap-3">
-				<div class="flex items-center gap-2 bg-surface-container px-3.5 py-1.5 rounded-full border border-outline-variant/20 shadow-sm">
+				<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full shadow-xs">
 					<span class="relative flex h-2.5 w-2.5">
 						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
 						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -431,7 +431,7 @@
 
 				<button
 					onclick={loadDevices}
-					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 border border-outline-variant/20"
+					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 					title="Rescan Devices"
 				>
 					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
@@ -441,18 +441,18 @@
 
 		<!-- Alert Banners -->
 		{#if error}
-			<div class="bg-error/15 text-error border border-error/30 p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
+			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">error</span>
 				<div class="flex-1 break-words font-semibold">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		{#if infoMessage}
-			<div class="bg-primary/10 text-primary border border-primary/20 p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
+			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">check_circle</span>
 				<div class="flex-1 break-words font-semibold">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
@@ -463,10 +463,10 @@
 			<div class="lg:col-span-8 flex flex-col gap-4 overflow-hidden min-h-0">
 				
 				<!-- Mode Navigation Tabs -->
-				<nav class="flex gap-2 p-1.5 bg-surface-container rounded-2xl shrink-0 overflow-x-auto">
+				<nav class="flex gap-2 p-1.5 bg-surface-container rounded-2xl shrink-0 overflow-x-auto shadow-xs">
 					<button
 						onclick={() => (activeTab = 'rom_planner')}
-						class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'rom_planner' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+						class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'rom_planner' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
 					>
 						<span class="material-symbols-outlined text-[18px]">folder_zip</span>
 						ROM Flash Planner
@@ -474,7 +474,7 @@
 
 					<button
 						onclick={() => (activeTab = 'manual_flasher')}
-						class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'manual_flasher' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+						class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'manual_flasher' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
 					>
 						<span class="material-symbols-outlined text-[18px]">flash_on</span>
 						Single Partition
@@ -482,7 +482,7 @@
 
 					<button
 						onclick={() => (activeTab = 'sideload')}
-						class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'sideload' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+						class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'sideload' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
 					>
 						<span class="material-symbols-outlined text-[18px]">install_mobile</span>
 						ADB Sideload
@@ -490,7 +490,7 @@
 
 					<button
 						onclick={() => (activeTab = 'fastboot_console')}
-						class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'fastboot_console' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
+						class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap {activeTab === 'fastboot_console' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}"
 					>
 						<span class="material-symbols-outlined text-[18px]">terminal</span>
 						Fastboot Terminal
@@ -499,7 +499,7 @@
 
 				<!-- Tab 1: ROM Flash Planner -->
 				{#if activeTab === 'rom_planner'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col gap-5 overflow-hidden min-h-0 border border-outline-variant/10">
+					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col gap-5 overflow-hidden min-h-0 shadow-sm">
 						<div>
 							<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
 								<span class="material-symbols-outlined text-primary">auto_mode</span>
@@ -519,13 +519,13 @@
 										type="text"
 										bind:value={romFolderPath}
 										placeholder="e.g. /home/user/Downloads/Pixel8_Factory_ROM"
-										class="w-full bg-surface-container-high border border-outline-variant/30 rounded-xl pl-10 pr-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+										class="w-full bg-surface-container-high rounded-xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
 										disabled={scanningRom || executingPlan}
 									/>
 								</div>
 								<button
 									onclick={scanRomFolder}
-									class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-5 py-2 text-xs font-bold transition-all disabled:opacity-40 shrink-0"
+									class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-5 py-2.5 text-xs font-bold transition-all disabled:opacity-40 shrink-0 shadow-sm"
 									disabled={scanningRom || executingPlan || !romFolderPath.trim()}
 								>
 									{#if scanningRom}
@@ -553,9 +553,9 @@
 									<span class="text-[11px] text-on-surface-variant font-mono">Location: {scannedPlan.folder}</span>
 								</div>
 
-								<div class="flex-1 bg-surface-container-low rounded-2xl overflow-y-auto border border-outline-variant/20 p-2 flex flex-col gap-1.5">
+								<div class="flex-1 bg-surface-container-low rounded-2xl overflow-y-auto p-2 flex flex-col gap-1.5 shadow-inner">
 									{#each scannedPlan.steps as step, idx (idx)}
-										<label class="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-container-high/60 transition-all cursor-pointer border border-transparent {currentFlashStepIndex === idx ? 'bg-primary/15 border-primary/40 font-bold' : ''}">
+										<label class="flex items-center justify-between p-3 rounded-xl hover:bg-surface-container-high/60 transition-all cursor-pointer {currentFlashStepIndex === idx ? 'bg-primary/15 font-bold' : ''}">
 											<div class="flex items-center gap-3">
 												<input
 													type="checkbox"
@@ -569,7 +569,7 @@
 												</div>
 											</div>
 											{#if step.size}
-												<span class="text-[11px] font-mono text-on-surface-variant px-2 py-0.5 bg-surface-container rounded-md">{step.size}</span>
+												<span class="text-[11px] font-mono text-on-surface-variant px-2.5 py-0.5 bg-surface-container rounded-md">{step.size}</span>
 											{/if}
 										</label>
 									{/each}
@@ -577,7 +577,7 @@
 
 								<!-- Progress Bar -->
 								{#if executingPlan}
-									<div class="flex flex-col gap-1.5 shrink-0 bg-primary/10 p-3 rounded-xl border border-primary/20">
+									<div class="flex flex-col gap-1.5 shrink-0 bg-primary/10 p-3.5 rounded-xl">
 										<div class="flex justify-between text-xs font-bold text-primary">
 											<span>Flashing step {currentFlashStepIndex + 1} of {scannedPlan.steps.length}...</span>
 											<span>{flashProgress}%</span>
@@ -591,7 +591,7 @@
 								<!-- Action Execution -->
 								<button
 									onclick={executeFlashPlan}
-									class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-6 py-2.5 text-xs font-bold transition-all shadow-md disabled:opacity-50 shrink-0 w-full"
+									class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-6 py-3 text-xs font-bold transition-all shadow-md disabled:opacity-50 shrink-0 w-full"
 									disabled={executingPlan || !selectedDevice}
 								>
 									{#if executingPlan}
@@ -607,7 +607,7 @@
 
 				<!-- Tab 2: Single Partition Flasher -->
 				{#if activeTab === 'manual_flasher'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-5 overflow-y-auto border border-outline-variant/10">
+					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-5 overflow-y-auto shadow-sm">
 						<div class="flex flex-col gap-5">
 							<div>
 								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
@@ -624,7 +624,7 @@
 									{#each partitionPresets as p}
 										<button
 											onclick={() => handlePresetClick(p)}
-											class="px-3 py-1 rounded-xl text-xs font-mono font-bold transition-all border {manualPartition === p ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/20 hover:border-primary/50 hover:text-on-surface'}"
+											class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all {manualPartition === p ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'}"
 										>
 											{p}
 										</button>
@@ -641,7 +641,7 @@
 										type="text"
 										bind:value={manualPartition}
 										placeholder="e.g. boot"
-										class="bg-surface-container-high border border-outline-variant/30 rounded-xl px-3 py-2 text-xs font-mono font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+										class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 										disabled={flashingManual}
 									/>
 								</div>
@@ -655,7 +655,7 @@
 											type="text"
 											bind:value={manualImagePath}
 											placeholder="/path/to/image.img"
-											class="w-full bg-surface-container-high border border-outline-variant/30 rounded-xl pl-10 pr-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+											class="w-full bg-surface-container-high rounded-xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 											disabled={flashingManual}
 										/>
 									</div>
@@ -682,7 +682,7 @@
 
 				<!-- Tab 3: ADB Sideload -->
 				{#if activeTab === 'sideload'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-5 border border-outline-variant/10">
+					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
 						<div class="flex flex-col gap-5">
 							<div>
 								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
@@ -692,7 +692,7 @@
 								<p class="text-xs text-on-surface-variant mt-1">Sideload OTA updates, system zip patches, or custom recovery packages when device is in Sideload Mode.</p>
 							</div>
 
-							<div class="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-start gap-3">
+							<div class="bg-primary/5 rounded-2xl p-4 flex items-start gap-3">
 								<span class="material-symbols-outlined text-primary text-[22px] shrink-0 mt-0.5">info</span>
 								<div class="text-xs text-on-surface-variant">
 									<p class="font-bold text-on-surface">Entering Sideload Mode:</p>
@@ -709,7 +709,7 @@
 										type="text"
 										bind:value={sideloadZipPath}
 										placeholder="/path/to/update.zip"
-										class="w-full bg-surface-container-high border border-outline-variant/30 rounded-xl pl-10 pr-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+										class="w-full bg-surface-container-high rounded-xl pl-10 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 										disabled={sideloading}
 									/>
 								</div>
@@ -735,7 +735,7 @@
 
 				<!-- Tab 4: Fastboot Terminal Console -->
 				{#if activeTab === 'fastboot_console'}
-					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-4 overflow-hidden border border-outline-variant/10">
+					<div class="flex-1 rounded-[24px] bg-surface-container p-6 flex flex-col justify-between gap-4 overflow-hidden shadow-sm">
 						<div>
 							<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
 								<span class="material-symbols-outlined text-primary">terminal</span>
@@ -745,7 +745,7 @@
 						</div>
 
 						<!-- CLI Console Terminal Box -->
-						<div class="flex-1 bg-neutral-950 rounded-2xl p-4 font-mono text-xs overflow-y-auto max-h-[320px] flex flex-col gap-1 border border-neutral-800 shadow-inner select-all">
+						<div class="flex-1 bg-neutral-950 rounded-2xl p-4 font-mono text-xs overflow-y-auto max-h-[320px] flex flex-col gap-1 shadow-inner select-all">
 							{#if cliLogs.length === 0}
 								<span class="text-neutral-500">// Terminal ready. Type fastboot arguments below (e.g. getvar all).</span>
 							{:else}
@@ -768,13 +768,13 @@
 									type="text"
 									bind:value={customCommand}
 									placeholder="getvar all"
-									class="bg-surface-container-high border border-outline-variant/40 rounded-xl pl-24 pr-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-full"
+									class="bg-surface-container-high rounded-xl pl-24 pr-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-full"
 									disabled={executingCli}
 								/>
 							</div>
 							<button
 								type="submit"
-								class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-5 py-2 text-xs font-bold transition-all disabled:opacity-50"
+								class="rounded-xl bg-primary text-on-primary hover:brightness-110 px-5 py-2.5 text-xs font-bold transition-all disabled:opacity-50 shadow-sm"
 								disabled={executingCli || !selectedDevice || !customCommand.trim()}
 							>
 								Send Command
@@ -788,7 +788,7 @@
 			<div class="lg:col-span-4 flex flex-col gap-4 overflow-y-auto">
 				
 				<!-- A/B Slot Manager Panel -->
-				<section class="rounded-[24px] bg-surface-container p-5 border border-outline-variant/10 flex flex-col gap-4">
+				<section class="rounded-[24px] bg-surface-container p-5 flex flex-col gap-4 shadow-sm">
 					<div class="flex items-center justify-between">
 						<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
 							<span class="material-symbols-outlined text-primary text-[18px]">swap_horiz</span>
@@ -806,14 +806,14 @@
 					<div class="grid grid-cols-2 gap-2">
 						<button
 							onclick={() => setActiveSlot('a')}
-							class="rounded-xl py-2 px-3 text-xs font-bold transition-all border {activeSlot === 'a' ? 'bg-primary text-on-primary border-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest border-outline-variant/20'}"
+							class="rounded-xl py-2.5 px-3 text-xs font-bold transition-all {activeSlot === 'a' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}"
 							disabled={loadingSlot || !selectedDevice}
 						>
 							Switch Slot A
 						</button>
 						<button
 							onclick={() => setActiveSlot('b')}
-							class="rounded-xl py-2 px-3 text-xs font-bold transition-all border {activeSlot === 'b' ? 'bg-primary text-on-primary border-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest border-outline-variant/20'}"
+							class="rounded-xl py-2.5 px-3 text-xs font-bold transition-all {activeSlot === 'b' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}"
 							disabled={loadingSlot || !selectedDevice}
 						>
 							Switch Slot B
@@ -822,7 +822,7 @@
 
 					<button
 						onclick={continueBoot}
-						class="rounded-xl bg-surface-container-highest text-on-surface hover:bg-primary hover:text-on-primary transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40 border border-outline-variant/20"
+						class="rounded-xl bg-surface-container-highest text-on-surface hover:bg-primary hover:text-on-primary transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40"
 						disabled={!selectedDevice}
 					>
 						Continue Normal Booting
@@ -830,7 +830,7 @@
 				</section>
 
 				<!-- Device State & Quick Reboot Actions -->
-				<section class="rounded-[24px] bg-surface-container p-5 border border-outline-variant/10 flex flex-col gap-3">
+				<section class="rounded-[24px] bg-surface-container p-5 flex flex-col gap-3 shadow-sm">
 					<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2 mb-1">
 						<span class="material-symbols-outlined text-primary text-[18px]">power_settings_new</span>
 						Reboot Controls
@@ -839,14 +839,14 @@
 					<div class="grid grid-cols-2 gap-2">
 						<button
 							onclick={() => rebootDevice('normal')}
-							class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2 text-xs font-bold transition-all border border-outline-variant/20 disabled:opacity-40"
+							class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40"
 							disabled={!selectedDevice}
 						>
 							System
 						</button>
 						<button
 							onclick={() => rebootDevice('bootloader')}
-							class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2 text-xs font-bold transition-all border border-outline-variant/20 disabled:opacity-40"
+							class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40"
 							disabled={!selectedDevice}
 						>
 							Bootloader
@@ -855,7 +855,7 @@
 
 					<button
 						onclick={() => rebootDevice('recovery')}
-						class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2 text-xs font-bold transition-all border border-outline-variant/20 disabled:opacity-40 w-full"
+						class="rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-2.5 text-xs font-bold transition-all disabled:opacity-40 w-full"
 						disabled={!selectedDevice}
 					>
 						Reboot Recovery (Sideload)
@@ -863,7 +863,7 @@
 				</section>
 
 				<!-- Safety & Reset Action -->
-				<section class="rounded-[24px] bg-error/5 p-5 border border-error/20 flex flex-col gap-3">
+				<section class="rounded-[24px] bg-error/5 p-5 flex flex-col gap-3 shadow-sm">
 					<h3 class="text-xs font-bold text-error uppercase tracking-wider flex items-center gap-2">
 						<span class="material-symbols-outlined text-error text-[18px]">warning</span>
 						Dangerous Wipe Actions
@@ -871,7 +871,7 @@
 					<p class="text-[11px] text-on-surface-variant">Perform factory reset by clearing user data & cache partitions.</p>
 					<button
 						onclick={wipeUserdata}
-						class="rounded-xl bg-error/15 text-error hover:bg-error/25 border border-error/30 transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40"
+						class="rounded-xl bg-error/15 text-error hover:bg-error/25 transition-all text-xs font-bold py-2.5 w-full disabled:opacity-40"
 						disabled={!selectedDevice}
 					>
 						Wipe Userdata (Factory Reset)

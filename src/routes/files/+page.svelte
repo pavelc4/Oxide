@@ -337,10 +337,10 @@
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6 w-full">
+	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6 w-full shadow-sm">
 
 		<!-- Top Header & Device Selector -->
-		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2 border-b border-outline-variant/15 w-full">
+		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2 w-full">
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
@@ -353,7 +353,7 @@
 					<div class="flex items-center gap-3">
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Device File Explorer</h2>
 						{#if !isTauri}
-							<span class="text-[10px] bg-warning/15 text-warning border border-warning/30 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
+							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
 						{/if}
 					</div>
 					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Explore, transfer, and manage files on connected Android device</p>
@@ -362,7 +362,7 @@
 
 			<!-- Right Control Group -->
 			<div class="flex items-center gap-3 shrink-0">
-				<div class="flex items-center gap-2 bg-surface-container px-3.5 py-1.5 rounded-full border border-outline-variant/20 shadow-sm">
+				<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full shadow-xs">
 					<span class="relative flex h-2.5 w-2.5">
 						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
 						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -384,7 +384,7 @@
 
 				<button
 					onclick={loadDevices}
-					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 border border-outline-variant/20"
+					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
 					title="Refresh Devices"
 				>
 					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
@@ -394,34 +394,34 @@
 
 		<!-- Alert Messages -->
 		{#if error}
-			<div class="bg-error/15 text-error border border-error/30 p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
+			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">error</span>
 				<div class="flex-1 break-words font-semibold">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		{#if infoMessage}
-			<div class="bg-primary/10 text-primary border border-primary/20 p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
+			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">check_circle</span>
 				<div class="flex-1 break-words font-semibold">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg">Dismiss</button>
 			</div>
 		{/if}
 
 		<!-- Main File Explorer Workspace Flex Layout -->
 		<div class="flex-1 flex gap-6 overflow-hidden min-h-0 w-full">
 
-			<!-- Left Quick Links Sidebar (Fixed Width w-60) -->
+			<!-- Left Quick Links Sidebar (Fixed Width w-60, Seamless Borderless Card) -->
 			<div class="w-60 shrink-0 flex flex-col gap-4 overflow-y-auto hidden md:flex">
-				<div class="rounded-[24px] bg-surface-container p-4 border border-outline-variant/10 flex flex-col gap-2">
-					<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80 px-2">Storage Shortcuts</span>
+				<div class="rounded-[24px] bg-surface-container p-4 flex flex-col gap-2 shadow-xs">
+					<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80 px-2 mb-1">Storage Shortcuts</span>
 					
 					<div class="flex flex-col gap-1">
 						{#each quickLocations as loc}
 							<button
 								onclick={() => navigateTo(loc.path)}
-								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left {currentPath === loc.path ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left {currentPath === loc.path ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}"
 							>
 								<span class="material-symbols-outlined text-[18px]">{loc.icon}</span>
 								<span class="truncate">{loc.label}</span>
@@ -431,14 +431,14 @@
 				</div>
 			</div>
 
-			<!-- Middle Main File Browser Area (Takes 100% Remaining Width: flex-1 min-w-0) -->
+			<!-- Middle Main File Browser Area (Takes 100% Remaining Width) -->
 			<div class="flex-1 min-w-0 flex flex-col gap-4 overflow-hidden min-h-0">
 				
 				<!-- Action Toolbar & Breadcrumb Navigation Bar -->
 				<div class="flex flex-col gap-3 shrink-0 w-full">
 					
-					<!-- Navigation Bar -->
-					<div class="flex items-center gap-2 bg-surface-container p-2 rounded-2xl border border-outline-variant/10 w-full">
+					<!-- Navigation Bar (Seamless Pill) -->
+					<div class="flex items-center gap-2 bg-surface-container p-2.5 rounded-2xl shadow-xs w-full">
 						<button
 							onclick={navigateUp}
 							disabled={currentPath === '/'}
@@ -481,7 +481,7 @@
 						<div class="flex items-center gap-2">
 							<button
 								onclick={() => (showNewFolderModal = true)}
-								class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm shrink-0"
+								class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm shrink-0"
 							>
 								<span class="material-symbols-outlined text-[16px]">create_new_folder</span>
 								New Folder
@@ -489,7 +489,7 @@
 
 							<button
 								onclick={() => (showPushModal = true)}
-								class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest text-xs font-bold transition-all border border-outline-variant/20 shrink-0"
+								class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest text-xs font-bold transition-all shrink-0"
 							>
 								<span class="material-symbols-outlined text-[16px]">upload</span>
 								Upload File
@@ -499,27 +499,27 @@
 						<!-- Filter & View Controls -->
 						<div class="flex items-center gap-2">
 							<div class="relative">
-								<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
+								<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
 								<input
 									type="text"
 									bind:value={searchQuery}
 									placeholder="Search files..."
-									class="bg-surface-container-high border border-outline-variant/30 rounded-xl pl-8 pr-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-44"
+									class="bg-surface-container-high rounded-xl pl-9 pr-3 py-2 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-44"
 								/>
 							</div>
 
 							<!-- Grid/List toggle -->
-							<div class="flex bg-surface-container p-1 rounded-xl border border-outline-variant/10 shrink-0">
+							<div class="flex bg-surface-container p-1 rounded-xl shrink-0">
 								<button
 									onclick={() => (viewMode = 'list')}
-									class="p-1 rounded-lg text-xs transition-all {viewMode === 'list' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+									class="p-1.5 rounded-lg text-xs transition-all {viewMode === 'list' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 									title="List View"
 								>
 									<span class="material-symbols-outlined text-[16px]">view_list</span>
 								</button>
 								<button
 									onclick={() => (viewMode = 'grid')}
-									class="p-1 rounded-lg text-xs transition-all {viewMode === 'grid' ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface'}"
+									class="p-1.5 rounded-lg text-xs transition-all {viewMode === 'grid' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 									title="Grid View"
 								>
 									<span class="material-symbols-outlined text-[16px]">grid_view</span>
@@ -530,8 +530,8 @@
 
 				</div>
 
-				<!-- Files Display Container (Expands Full Width) -->
-				<div class="flex-1 bg-surface-container rounded-[24px] p-5 border border-outline-variant/10 overflow-y-auto min-h-0 w-full">
+				<!-- Files Display Container (Seamless Borderless Card) -->
+				<div class="flex-1 bg-surface-container rounded-[24px] p-5 overflow-y-auto min-h-0 w-full shadow-sm">
 					{#if loadingFiles}
 						<div class="flex flex-col items-center justify-center h-48 gap-3 text-on-surface-variant">
 							<span class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></span>
@@ -543,23 +543,23 @@
 							<span class="text-xs font-bold">This directory is empty</span>
 						</div>
 					{:else if viewMode === 'list'}
-						<!-- Full Width Table List View -->
+						<!-- Borderless List View -->
 						<table class="w-full text-left border-collapse text-xs">
 							<thead>
-								<tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/15 pb-2">
-									<th class="pb-2.5 font-bold cursor-pointer" onclick={() => { sortBy = 'name'; sortAsc = !sortAsc; }}>Name</th>
-									<th class="pb-2.5 font-bold cursor-pointer text-right w-28" onclick={() => { sortBy = 'size'; sortAsc = !sortAsc; }}>Size</th>
-									<th class="pb-2.5 font-bold cursor-pointer text-center w-28 hidden lg:table-cell">Permissions</th>
-									<th class="pb-2.5 font-bold cursor-pointer text-right w-40 hidden sm:table-cell" onclick={() => { sortBy = 'modified'; sortAsc = !sortAsc; }}>Modified</th>
+								<tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider pb-3">
+									<th class="pb-3 px-3 font-bold cursor-pointer" onclick={() => { sortBy = 'name'; sortAsc = !sortAsc; }}>Name</th>
+									<th class="pb-3 px-3 font-bold cursor-pointer text-right w-28" onclick={() => { sortBy = 'size'; sortAsc = !sortAsc; }}>Size</th>
+									<th class="pb-3 px-3 font-bold cursor-pointer text-center w-28 hidden lg:table-cell">Permissions</th>
+									<th class="pb-3 px-3 font-bold cursor-pointer text-right w-40 hidden sm:table-cell" onclick={() => { sortBy = 'modified'; sortAsc = !sortAsc; }}>Modified</th>
 								</tr>
 							</thead>
-							<tbody class="divide-y divide-outline-variant/10">
+							<tbody class="space-y-1">
 								{#each filteredFiles as file (file.name)}
 									<tr
 										onclick={() => handleItemClick(file)}
-										class="hover:bg-surface-container-high/60 transition-all cursor-pointer group {selectedFile?.name === file.name ? 'bg-primary/15 font-bold' : ''}"
+										class="hover:bg-surface-container-high/70 transition-all cursor-pointer group rounded-xl {selectedFile?.name === file.name ? 'bg-primary/15 font-bold' : ''}"
 									>
-										<td class="py-2.5 pr-3">
+										<td class="py-2.5 px-3 rounded-l-xl">
 											<div class="flex items-center gap-3">
 												<span class="material-symbols-outlined text-[22px] shrink-0 {file.is_dir ? 'text-amber-400 font-fill' : 'text-primary/80'}">
 													{getFileIcon(file.name, file.is_dir)}
@@ -567,13 +567,13 @@
 												<span class="font-semibold text-on-surface group-hover:text-primary transition-colors truncate">{file.name}</span>
 											</div>
 										</td>
-										<td class="py-2.5 text-on-surface-variant text-right font-mono text-[11px]">
+										<td class="py-2.5 px-3 text-on-surface-variant text-right font-mono text-[11px]">
 											{file.is_dir ? '—' : formatBytes(file.size)}
 										</td>
-										<td class="py-2.5 text-on-surface-variant/70 text-center font-mono text-[10px] hidden lg:table-cell">
+										<td class="py-2.5 px-3 text-on-surface-variant/70 text-center font-mono text-[10px] hidden lg:table-cell">
 											{file.permissions}
 										</td>
-										<td class="py-2.5 text-on-surface-variant text-right font-mono text-[11px] hidden sm:table-cell">
+										<td class="py-2.5 px-3 text-on-surface-variant text-right font-mono text-[11px] rounded-r-xl hidden sm:table-cell">
 											{formatTimestamp(file.modified)}
 										</td>
 									</tr>
@@ -586,7 +586,7 @@
 							{#each filteredFiles as file (file.name)}
 								<button
 									onclick={() => handleItemClick(file)}
-									class="flex flex-col items-center gap-2 p-3.5 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-highest transition-all border border-outline-variant/10 group text-center {selectedFile?.name === file.name ? 'ring-2 ring-primary bg-primary/10' : ''}"
+									class="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-container-high/40 hover:bg-surface-container-highest transition-all group text-center {selectedFile?.name === file.name ? 'ring-2 ring-primary bg-primary/10' : ''}"
 								>
 									<span class="material-symbols-outlined text-[36px] {file.is_dir ? 'text-amber-400' : 'text-primary/80'}">
 										{getFileIcon(file.name, file.is_dir)}
@@ -600,9 +600,9 @@
 				</div>
 			</div>
 
-			<!-- Right File Details Panel (Fixed Width w-72 when selected) -->
+			<!-- Right File Details Panel (Seamless Borderless Card) -->
 			{#if selectedFile}
-				<div class="w-72 shrink-0 rounded-[24px] bg-surface-container p-5 border border-outline-variant/10 flex flex-col justify-between gap-4 animate-fade-in">
+				<div class="w-72 shrink-0 rounded-[24px] bg-surface-container p-5 flex flex-col justify-between gap-4 animate-fade-in shadow-sm">
 					<div class="flex flex-col gap-4">
 						<div class="flex items-center justify-between">
 							<h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">File Properties</h3>
@@ -619,19 +619,19 @@
 						</div>
 
 						<div class="flex flex-col gap-2 text-xs">
-							<div class="flex justify-between py-1 border-b border-outline-variant/10">
+							<div class="flex justify-between py-1.5">
 								<span class="text-on-surface-variant">Type</span>
 								<span class="font-bold text-on-surface">{selectedFile.is_dir ? 'Directory' : 'File'}</span>
 							</div>
-							<div class="flex justify-between py-1 border-b border-outline-variant/10">
+							<div class="flex justify-between py-1.5">
 								<span class="text-on-surface-variant">Size</span>
 								<span class="font-mono text-on-surface">{formatBytes(selectedFile.size)}</span>
 							</div>
-							<div class="flex justify-between py-1 border-b border-outline-variant/10">
+							<div class="flex justify-between py-1.5">
 								<span class="text-on-surface-variant">Permissions</span>
 								<span class="font-mono text-on-surface">{selectedFile.permissions}</span>
 							</div>
-							<div class="flex justify-between py-1 border-b border-outline-variant/10">
+							<div class="flex justify-between py-1.5">
 								<span class="text-on-surface-variant">Modified</span>
 								<span class="font-mono text-on-surface text-[10px]">{formatTimestamp(selectedFile.modified)}</span>
 							</div>
@@ -642,7 +642,7 @@
 						{#if !selectedFile.is_dir}
 							<button
 								onclick={() => (showPullModal = true)}
-								class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm"
+								class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm"
 							>
 								<span class="material-symbols-outlined text-[16px]">download</span>
 								Download to PC
@@ -651,7 +651,7 @@
 
 						<button
 							onclick={() => { renameNewName = selectedFile?.name || ''; showRenameModal = true; }}
-							class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all border border-outline-variant/20"
+							class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all"
 						>
 							<span class="material-symbols-outlined text-[16px]">edit</span>
 							Rename
@@ -659,7 +659,7 @@
 
 						<button
 							onclick={() => selectedFile && handleDelete(selectedFile)}
-							class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-error/15 text-error hover:bg-error/25 border border-error/30 text-xs font-bold transition-all"
+							class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-error/15 text-error hover:bg-error/25 text-xs font-bold transition-all"
 						>
 							<span class="material-symbols-outlined text-[16px]">delete</span>
 							Delete
@@ -677,13 +677,13 @@
 <!-- New Folder Modal -->
 {#if showNewFolderModal}
 	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-sm w-full flex flex-col gap-4 border border-outline-variant/20 shadow-2xl animate-fade-in">
+		<div class="bg-surface-container p-6 rounded-[28px] max-w-sm w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
 			<h3 class="text-base font-bold text-on-surface">Create New Directory</h3>
 			<input
 				type="text"
 				bind:value={newFolderName}
 				placeholder="Folder name"
-				class="bg-surface-container-high border border-outline-variant/30 rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 			/>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => (showNewFolderModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
@@ -696,13 +696,13 @@
 <!-- Rename Modal -->
 {#if showRenameModal}
 	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-sm w-full flex flex-col gap-4 border border-outline-variant/20 shadow-2xl animate-fade-in">
+		<div class="bg-surface-container p-6 rounded-[28px] max-w-sm w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
 			<h3 class="text-base font-bold text-on-surface">Rename Item</h3>
 			<input
 				type="text"
 				bind:value={renameNewName}
 				placeholder="New name"
-				class="bg-surface-container-high border border-outline-variant/30 rounded-xl px-3 py-2 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 			/>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => (showRenameModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
@@ -715,14 +715,14 @@
 <!-- Upload File Modal -->
 {#if showPushModal}
 	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-md w-full flex flex-col gap-4 border border-outline-variant/20 shadow-2xl animate-fade-in">
+		<div class="bg-surface-container p-6 rounded-[28px] max-w-md w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
 			<h3 class="text-base font-bold text-on-surface">Upload File to Device</h3>
 			<p class="text-xs text-on-surface-variant">Destination path: <code class="font-mono text-primary">{currentPath}</code></p>
 			<input
 				type="text"
 				bind:value={localPushPath}
 				placeholder="/path/to/local/file.txt"
-				class="bg-surface-container-high border border-outline-variant/30 rounded-xl px-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 			/>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => (showPushModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
@@ -735,14 +735,14 @@
 <!-- Download File Modal -->
 {#if showPullModal}
 	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-md w-full flex flex-col gap-4 border border-outline-variant/20 shadow-2xl animate-fade-in">
+		<div class="bg-surface-container p-6 rounded-[28px] max-w-md w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
 			<h3 class="text-base font-bold text-on-surface">Download File to PC</h3>
 			<p class="text-xs text-on-surface-variant">Source item: <code class="font-mono text-primary">{selectedFile?.name}</code></p>
 			<input
 				type="text"
 				bind:value={localPullPath}
 				placeholder="/path/to/destination/file"
-				class="bg-surface-container-high border border-outline-variant/30 rounded-xl px-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
+				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
 			/>
 			<div class="flex gap-2 justify-end">
 				<button onclick={() => (showPullModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
