@@ -458,16 +458,16 @@
 			</header>
 
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest">
-					<div class="flex justify-between items-center mb-1">
+				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest overflow-hidden">
+					<div class="flex justify-between items-center mb-2">
 						<span class="text-xs font-semibold text-on-surface-variant">CPU Usage</span>
 						<span class="text-sm font-bold text-emerald-400 font-mono">{currentCpu}%</span>
 					</div>
 					<Sparkline data={dataCpu} color="#4ADE80" height={60} />
 				</div>
 
-				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest">
-					<div class="flex justify-between items-center mb-1">
+				<div class="rounded-2xl bg-surface-container-high p-5 transition-colors hover:bg-surface-container-highest overflow-hidden">
+					<div class="flex justify-between items-center mb-2">
 						<span class="text-xs font-semibold text-on-surface-variant">RAM Memory ({currentMem}%)</span>
 						<span class="text-sm font-bold text-purple-400 font-mono">{memStr}</span>
 					</div>

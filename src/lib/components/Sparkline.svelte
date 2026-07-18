@@ -1,67 +1,64 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	let { data = [0], color = '#4ADE80', height = 60 }: { data: number[]; color?: string; height?: number } = $props();
 
-	let canvas: HTMLCanvasElement;
-	let ctx: CanvasRenderingContext2D | null = null;
+	const viewBoxWidth = 300;
+	const viewBoxHeight = 100;
 
-	function draw() {
-		if (!ctx || !canvas) return;
-		let w = canvas.width;
-		let h = canvas.height;
-		let len = data.length;
-		if (len < 2) return;
+	const gradientId = $derived(`sparkline-grad-${color.replace(/[^a-zA-Z0-9]/g, '')}`);
 
-		ctx.clearRect(0, 0, w, h);
+	let points = $derived.by(() => {
+		if (!data || data.length < 2) return [];
+		const len = data.length;
+		const max = Math.max(...data, 1);
+		const min = Math.min(...data, 0);
+		const range = max - min || 1;
 
-		let max = Math.max(...data, 1);
-		let min = Math.min(...data, 0);
-		let range = max - min || 1;
-
-		let points: { x: number; y: number }[] = [];
-		for (let i = 0; i < len; i++) {
-			let x = (i / (len - 1)) * w;
-			let y = h - ((data[i] - min) / range) * (h - 4) - 2;
-			points.push({ x, y });
-		}
-
-		ctx.beginPath();
-		ctx.moveTo(points[0].x, points[0].y);
-		for (let i = 1; i < points.length; i++) {
-			ctx.lineTo(points[i].x, points[i].y);
-		}
-		ctx.strokeStyle = color;
-		ctx.lineWidth = 1.5;
-		ctx.lineJoin = 'round';
-		ctx.lineCap = 'round';
-		ctx.stroke();
-
-		ctx.lineTo(points[points.length - 1].x, h);
-		ctx.lineTo(points[0].x, h);
-		ctx.closePath();
-		ctx.fillStyle = color;
-		ctx.globalAlpha = 0.1;
-		ctx.fill();
-		ctx.globalAlpha = 1;
-	}
-
-	onMount(() => {
-		let dpr = window.devicePixelRatio || 1;
-		let rect = canvas.parentElement?.getBoundingClientRect();
-		let w = rect ? rect.width : 120;
-		canvas.width = w * dpr;
-		canvas.height = height * dpr;
-		canvas.style.width = w + 'px';
-		canvas.style.height = height + 'px';
-		ctx = canvas.getContext('2d');
-		ctx?.scale(dpr, dpr);
-		draw();
+		return data.map((val, i) => {
+			const x = (i / (len - 1)) * viewBoxWidth;
+			const y = viewBoxHeight - ((val - min) / range) * (viewBoxHeight - 16) - 8;
+			return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+		});
 	});
 
-	$effect(() => {
-		if (data.length) draw();
+	let linePathStr = $derived.by(() => {
+		if (points.length < 2) return '';
+		return points.reduce((acc, p, i) => (i === 0 ? `M ${p.x},${p.y}` : `${acc} L ${p.x},${p.y}`), '');
+	});
+
+	let areaPathStr = $derived.by(() => {
+		if (points.length < 2) return '';
+		const lastX = points[points.length - 1].x;
+		return `${linePathStr} L ${lastX},${viewBoxHeight} L 0,${viewBoxHeight} Z`;
 	});
 </script>
 
-<canvas bind:this={canvas} class="w-full" style="height: {height}px"></canvas>
+<div class="w-full overflow-hidden rounded-xl relative" style="height: {height}px;">
+	<svg
+		viewBox="0 0 {viewBoxWidth} {viewBoxHeight}"
+		preserveAspectRatio="none"
+		class="w-full h-full block overflow-hidden"
+	>
+		<defs>
+			<linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+				<stop offset="0%" stop-color={color} stop-opacity="0.3" />
+				<stop offset="100%" stop-color={color} stop-opacity="0.0" />
+			</linearGradient>
+		</defs>
+
+		{#if areaPathStr}
+			<path d={areaPathStr} fill="url(#{gradientId})" />
+		{/if}
+
+		{#if linePathStr}
+			<path
+				d={linePathStr}
+				fill="none"
+				stroke={color}
+				stroke-width="2.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				vector-effect="non-scaling-stroke"
+			/>
+		{/if}
+	</svg>
+</div>
