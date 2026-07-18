@@ -1,0 +1,38 @@
+body {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+::selection {
+	background-color: var(--primaryContainer);
+	color: var(--onPrimaryContainer);
+}
+
+.contain-layout {
+	contain: layout style paint;
+}
+
+.will-change-transform {
+	will-change: transform;
+}
+
+@layer base {
+	::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: var(--outline);
+		border-radius: 4px;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: var(--onSurfaceVariant);
+	}
+}
