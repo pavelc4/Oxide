@@ -1,7 +1,7 @@
 use adb_client::ADBDeviceExt;
 use adb_client::server_device::ADBServerDevice;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct LogEntry {
     pub timestamp: String,
     pub pid: u32,
@@ -18,6 +18,14 @@ fn build_cmd(filter: &str, extra: &str) -> String {
         cmd.push_str(filter);
     }
     cmd.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+pub fn shell_cmd(device: &mut ADBServerDevice, cmd: &str) -> Result<String, String> {
+    let mut out = Vec::new();
+    device
+        .shell_command(&cmd, Some(&mut out), None)
+        .map_err(|e| format!("shell: {e}"))?;
+    Ok(String::from_utf8_lossy(&out).to_string())
 }
 
 pub fn collect_logs(device: &mut ADBServerDevice, filter: &str) -> Vec<LogEntry> {

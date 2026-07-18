@@ -4,7 +4,7 @@ use adb_client::ADBDeviceExt;
 use adb_client::server_device::ADBServerDevice;
 use adb_client::{ADBListItem, ADBListItemType};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct FileEntry {
     pub name: String,
     pub is_dir: bool,

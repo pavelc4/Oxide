@@ -4,21 +4,21 @@ use adb_client::server_device::ADBServerDevice;
 use crate::device::core::info::parse_meminfo_output;
 use crate::device::types::BatteryInfo;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct CpuInfo {
     pub user: f32,
     pub system: f32,
     pub idle: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RamInfo {
     pub total: u64,
     pub used: u64,
     pub free: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PerfSnapshot {
     pub cpu: CpuInfo,
     pub ram: RamInfo,
