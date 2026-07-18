@@ -7,11 +7,10 @@
     <div class="flex flex-col items-center gap-4 overflow-y-auto min-h-0">
         <a
             href="/"
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary transition-all hover:brightness-110 active:scale-95"
-            onclick={() => window.location.reload()}
-            title="Reload App"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary transition-all hover:brightness-110 active:scale-95 shadow-sm"
+            title="Oxide"
         >
-            <span class="material-symbols-outlined text-[18px]">refresh</span>
+            <span class="material-symbols-outlined text-[20px]">science</span>
         </a>
 
         {#each [
