@@ -140,21 +140,15 @@
 			const startTime = Date.now();
 
 			if (isTauri && invoke && selectedDevice) {
-				const result = await safeInvoke<{ stdout?: string; stderr?: string; exit_code?: number; duration_ms?: number }>('execute_shell_command', {
+				const result = await safeInvoke<string>('device_shell', {
 					serial: selectedDevice,
 					command: cmd
 				});
 
-				const duration = result.duration_ms || (Date.now() - startTime);
-
-				if (result.stdout && result.stdout.length > 0) {
-					history = [...history, { id: logCounter++, type: 'stdout', content: result.stdout, durationMs: duration, timestamp: getNowTime() }];
-				}
-				if (result.stderr && result.stderr.length > 0) {
-					history = [...history, { id: logCounter++, type: 'stderr', content: result.stderr, timestamp: getNowTime() }];
-				}
-				if (!result.stdout && !result.stderr) {
-					history = [...history, { id: logCounter++, type: 'info', content: `✓ exit code: ${result.exit_code || 0} (${duration}ms)`, timestamp: getNowTime() }];
+				if (result && result.length > 0) {
+					history = [...history, { id: logCounter++, type: 'stdout', content: result, durationMs: Date.now() - startTime, timestamp: getNowTime() }];
+				} else {
+					history = [...history, { id: logCounter++, type: 'info', content: 'Command completed', timestamp: getNowTime() }];
 				}
 			} else {
 				// Realistic Mock Shell Output Emulator

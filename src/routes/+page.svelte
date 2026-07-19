@@ -131,24 +131,21 @@
 
 			isPolling = true;
 			try {
-				const perf = await safeInvoke<{ memory?: any; uptime?: any; cpu?: any }>('get_performance_profile', { serial: selectedDevice }).catch(() => null);
+				const perf = await safeInvoke<{ cpu: { user: number; system: number; idle: number }; ram: { total: number; used: number; free: number }; battery: { level: number; status: string } | null } | null>('get_perf', { serial: selectedDevice }).catch(() => null);
 
 				if (perf) {
-					if (perf.memory && perf.memory.Ok) {
-						const memInfo = perf.memory.Ok;
-						currentMem = Math.round(((memInfo.total_kb - memInfo.available_kb) / memInfo.total_kb) * 100);
-						const usedGb = ((memInfo.total_kb - memInfo.available_kb) / (1024 * 1024)).toFixed(1);
-						const totalGb = (memInfo.total_kb / (1024 * 1024)).toFixed(1);
+					if (perf.ram) {
+						const totalKb = perf.ram.total / 1024;
+						const availKb = (perf.ram.total - perf.ram.used) / 1024;
+						currentMem = Math.round(((totalKb - availKb) / totalKb) * 100);
+						const usedGb = (perf.ram.used / (1024 * 1024 * 1024)).toFixed(1);
+						const totalGb = (perf.ram.total / (1024 * 1024 * 1024)).toFixed(1);
 						memStr = `${usedGb} GB / ${totalGb} GB`;
 						dataMem = [...dataMem.slice(1), currentMem];
 					}
 
-					if (perf.uptime && perf.uptime.Ok) {
-						const ut = perf.uptime.Ok;
-						const hours = Math.floor((ut % 86400) / 3600);
-						const minutes = Math.floor((ut % 3600) / 60);
-						const seconds = Math.floor(ut % 60);
-						uptimeStr = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+					if (perf.cpu) {
+						currentCpu = Math.round(perf.cpu.user + perf.cpu.system);
 						dataCpu = [...dataCpu.slice(1), currentCpu];
 					}
 				}
@@ -278,7 +275,7 @@
 		wirelessConnecting = true;
 		try {
 			if (isTauri && invoke) {
-				await safeInvoke('connect_wireless', { ip: wirelessIp.trim(), port: wirelessPort.trim() || '5555' });
+				await safeInvoke('wireless_connect', { host: `${wirelessIp.trim()}:${wirelessPort.trim() || '5555'}` });
 			}
 			alert(`Connected wirelessly to ${wirelessIp}:${wirelessPort}!`);
 			await loadDevices();

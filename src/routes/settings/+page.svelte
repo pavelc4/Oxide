@@ -189,7 +189,9 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await safeInvoke('generate_theme', { hexColor: colorHex });
+								const hex = colorHex.replace('#', '');
+				const argb = parseInt(hex, 16) | 0xff000000;
+				await safeInvoke('generate_theme', { argb });
 			}
 			infoMessage = `Matugen palette generated for accent color ${colorHex}`;
 		} catch {

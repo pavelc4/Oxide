@@ -58,25 +58,20 @@
 
 		try {
 			if (invoke) {
-				const result = await invoke('execute_shell_command', {
+				const result = await invoke('device_shell', {
 					serial: serial,
 					command: cmd
 				});
 
-				if (result.stdout && result.stdout.length > 0) {
+				if (result && result.length > 0) {
 					history.push({
 						type: 'stdout',
-						content: result.stdout,
-						durationMs: result.duration_ms
+						content: result
 					});
-				}
-				if (result.stderr && result.stderr.length > 0) {
-					history.push({ type: 'stderr', content: result.stderr });
-				}
-				if (!result.stdout && !result.stderr) {
+				} else {
 					history.push({
 						type: 'info',
-						content: `Command completed (exit: ${result.exit_code}, ${result.duration_ms}ms)`
+						content: 'Command completed'
 					});
 				}
 			} else {

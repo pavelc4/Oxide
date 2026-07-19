@@ -93,8 +93,18 @@
 		error = '';
 		try {
 			if (isTauri && invoke) {
-				const rustEntries = await safeInvoke<AuditEntry[]>('get_audit_logs');
-				entries = rustEntries && rustEntries.length > 0 ? rustEntries : mockAuditEntries;
+				const rawEntries = await safeInvoke<{timestamp: string; operation: string; serial?: string | null; details: string}[]>('get_audit_log');
+				entries = rawEntries && rawEntries.length > 0
+					? rawEntries.map((e, i) => ({
+						id: `audit-${i}`,
+						timestamp: e.timestamp,
+						operation: e.operation,
+						level: 'Info' as AuditEntry['level'],
+						message: e.operation,
+						details: e.details,
+						duration_ms: null
+					}))
+					: mockAuditEntries;
 			} else {
 				entries = mockAuditEntries;
 			}

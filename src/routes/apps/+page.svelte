@@ -286,7 +286,7 @@
 			if (isTauri && invoke) {
 				selectedAppDetails = await safeInvoke<AppDetails>('get_package_info', {
 					serial: selectedDevice,
-					packageName: pkg
+					package: pkg
 				});
 			} else {
 				const isSys = pkg.startsWith('com.android.') || pkg.startsWith('com.google.');
@@ -319,7 +319,7 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await safeInvoke('force_stop_package', { serial: selectedDevice, packageName: pkg });
+				await safeInvoke('force_stop_package', { serial: selectedDevice, package: pkg });
 			}
 			infoMessage = `Force stopped ${pkg} successfully.`;
 		} catch (e) {
@@ -333,7 +333,7 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await safeInvoke('clear_package_data', { serial: selectedDevice, packageName: pkg });
+				await safeInvoke('clear_package', { serial: selectedDevice, package: pkg });
 			}
 			infoMessage = `Cleared data for ${pkg} successfully.`;
 		} catch (e) {
@@ -347,9 +347,9 @@
 		try {
 			if (isTauri && invoke) {
 				if (enable) {
-					await safeInvoke('enable_package', { serial: selectedDevice, packageName: pkg });
+					await safeInvoke('enable_package', { serial: selectedDevice, package: pkg });
 				} else {
-					await safeInvoke('disable_package', { serial: selectedDevice, packageName: pkg });
+					await safeInvoke('disable_package', { serial: selectedDevice, package: pkg });
 				}
 			}
 			if (selectedAppDetails && selectedAppDetails.package_name === pkg) {
@@ -368,13 +368,10 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				const res = await safeInvoke<{ success: boolean; message: string }>('uninstall_package', {
+				await safeInvoke('uninstall_package', {
 					serial: selectedDevice,
-					packageName: pkg
+					package: pkg
 				});
-				if (!res.success) {
-					throw new Error(res.message);
-				}
 			}
 			infoMessage = `Uninstalled ${pkg} successfully.`;
 			selectedAppDetails = null;
@@ -389,7 +386,7 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				await safeInvoke('start_package_app', { serial: selectedDevice, packageName: pkg });
+				await safeInvoke('start_package_app', { serial: selectedDevice, package: pkg });
 				infoMessage = `Launched ${pkg} successfully.`;
 			} else {
 				infoMessage = `Launched ${pkg} successfully (mock).`;
@@ -407,7 +404,7 @@
 			if (isTauri && invoke) {
 				const savePath = await safeInvoke<string>('pull_package_apk', {
 					serial: selectedDevice,
-					packageName: pkg,
+					package: pkg,
 					destination
 				});
 				infoMessage = `APK downloaded successfully to: ${savePath}`;
@@ -434,7 +431,7 @@
 					if (isTauri && invoke) {
 						const res = await safeInvoke<{ success: boolean; message: string }>('uninstall_package', {
 							serial: selectedDevice,
-							packageName: pkg
+							package: pkg
 						});
 						if (!res.success) failCount++;
 					}
@@ -483,14 +480,11 @@
 		infoMessage = '';
 		try {
 			if (isTauri && invoke) {
-				const res = await safeInvoke<{ success: boolean; message: string; package_name: string | null }>('install_package', {
+				await safeInvoke('install_apk', {
 					serial: selectedDevice,
-					apkPath
+					path: apkPath
 				});
-				if (!res.success) {
-					throw new Error(res.message);
-				}
-				infoMessage = `Installed APK successfully: ${res.package_name || ''}`;
+				infoMessage = `Installed APK successfully.`;
 			} else {
 				await new Promise((resolve) => setTimeout(resolve, 1200));
 				infoMessage = `Installed APK successfully in mock mode.`;
