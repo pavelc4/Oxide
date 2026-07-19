@@ -1,9 +1,9 @@
+mod audit;
 mod core;
 mod device;
-mod theme;
-mod audit;
 mod fastboot;
 mod setup;
+mod theme;
 
 #[tauri::command]
 fn get_devices() -> Vec<device::types::DeviceSummary> {
@@ -12,8 +12,11 @@ fn get_devices() -> Vec<device::types::DeviceSummary> {
         .map(|d| device::types::DeviceSummary {
             serial: d.identifier,
             mode: device::types::DeviceMode::Adb,
-            state: if d.state.to_string() == "device" { device::types::DeviceState::Device }
-                   else { device::types::DeviceState::Unknown },
+            state: if d.state.to_string() == "device" {
+                device::types::DeviceState::Device
+            } else {
+                device::types::DeviceState::Unknown
+            },
             model: None,
             sdk: None,
             battery: None,
@@ -58,7 +61,10 @@ fn clear_package(serial: String, package: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn list_files(serial: String, path: String) -> Result<Vec<device::file::explorer::FileEntry>, String> {
+fn list_files(
+    serial: String,
+    path: String,
+) -> Result<Vec<device::file::explorer::FileEntry>, String> {
     let mut d = device::state::connect_serial(&serial);
     Ok(device::file::explorer::list_files(&mut d, &path))
 }
@@ -152,6 +158,11 @@ fn get_audit_log() -> Vec<audit::log::AuditEntry> {
 }
 
 #[tauri::command]
+fn clear_audit_log() {
+    audit::log::AuditLog::clear();
+}
+
+#[tauri::command]
 fn get_setup_status() -> setup::wizard::SetupStatus {
     setup::wizard::check_status()
 }
@@ -192,6 +203,7 @@ pub fn run() {
             get_audit_log,
             get_setup_status,
             complete_setup,
+            clear_audit_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

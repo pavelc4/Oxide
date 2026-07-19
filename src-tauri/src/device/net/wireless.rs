@@ -15,6 +15,11 @@ fn parse_addr(host_port: &str) -> Result<SocketAddrV4, String> {
 
 pub fn connect_device(host_port: &str) -> Result<(), String> {
     let addr = parse_addr(host_port)?;
+    std::net::TcpStream::connect_timeout(
+        &std::net::SocketAddr::V4(addr),
+        std::time::Duration::from_secs(3),
+    )
+    .map_err(|e| format!("device unreachable: {e}"))?;
     let mut srv = server();
     srv.connect_device(addr).map_err(|e| format!("connect: {e}"))
 }

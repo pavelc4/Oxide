@@ -104,13 +104,13 @@
 						details: e.details,
 						duration_ms: null
 					}))
-					: mockAuditEntries;
+					: [];
 			} else {
 				entries = mockAuditEntries;
 			}
 		} catch (e) {
-			console.warn('Fallback to mock audit logs:', e);
-			entries = mockAuditEntries;
+			console.warn('Failed to fetch audit logs:', e);
+			entries = [];
 		} finally {
 			loading = false;
 		}
@@ -121,7 +121,7 @@
 		loading = true;
 		try {
 			if (isTauri && invoke) {
-				await safeInvoke('clear_audit_logs');
+				await safeInvoke('clear_audit_log');
 			}
 			entries = [];
 			infoMessage = 'Audit log history cleared successfully.';

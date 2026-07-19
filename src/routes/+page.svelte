@@ -38,6 +38,19 @@
 	let selectedDevice = $state('');
 	let activeDevice = $derived(devices.find((d) => d.id === selectedDevice) || devices[0] || null);
 
+let deviceInfo: {
+	model: string | null;
+	brand: string | null;
+	sdk_version: string | null;
+	battery_level: number | null;
+	storage_total: number | null;
+	storage_used: number | null;
+	ram_total: number | null;
+	device: string | null;
+	product: string | null;
+	ip_address: string | null;
+} | null = $state(null);
+
 	// Performance Monitoring State
 	let dataCpu = $state(Array(40).fill(0));
 	let dataMem = $state(Array(40).fill(0));
@@ -106,6 +119,7 @@
 		}
 
 		await loadDevices();
+		if (selectedDevice) await fetchDeviceInfo(selectedDevice);
 
 		dataCpu = Array(40).fill(0).map(() => Math.floor(Math.random() * 20 + 15));
 		dataMem = Array(40).fill(0).map(() => Math.floor(Math.random() * 15 + 40));
@@ -184,6 +198,21 @@
 		if (logcatIntervalId) clearInterval(logcatIntervalId);
 	});
 
+	$effect(() => {
+		if (selectedDevice) fetchDeviceInfo(selectedDevice);
+	});
+
+	async function fetchDeviceInfo(serial: string) {
+		try {
+			if (isTauri && invoke) {
+				deviceInfo = await safeInvoke<any>('get_device_info', { serial });
+			}
+		} catch (e) {
+			console.warn('get_device_info:', e);
+			deviceInfo = null;
+		}
+	}
+
 	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
 		if (isTauri && invoke) {
 			return (await invoke(cmd, args)) as T;
@@ -200,16 +229,9 @@
 				if (rustDevices && rustDevices.length > 0) {
 					devices = rustDevices.map((d) => ({
 						id: d.serial,
-						name: d.model || d.serial,
+						name: d.serial,
 						status: 'Online',
-						connection: d.serial.includes('.') ? 'Wireless ADB' : 'USB 3.2 Gen2',
-						androidVersion: 'Android 14 (API 34)',
-						batteryLevel: 88,
-						isCharging: true,
-						storageUsedGb: 64,
-						storageTotalGb: 128,
-						resolution: '1440 x 3120 (560 dpi)',
-						abi: 'arm64-v8a'
+						connection: d.serial.includes('.') ? 'Wireless ADB' : 'USB',
 					}));
 				} else {
 					devices = [];
@@ -308,22 +330,7 @@
 			</div>
 
 			<div class="flex items-center gap-3">
-				{#if devices.length > 0}
-					<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full shadow-xs">
-						<span class="relative flex h-2.5 w-2.5">
-							<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-							<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-						</span>
-						<select
-							bind:value={selectedDevice}
-							class="bg-transparent border-none text-xs font-semibold text-on-surface focus:outline-none cursor-pointer pr-2"
-						>
-							{#each devices as dev (dev.id)}
-								<option value={dev.id}>{dev.name} ({dev.connection})</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
+
 
 				<button
 					onclick={loadDevices}
@@ -380,8 +387,8 @@
 					/>
 					<div class="mt-3 flex items-center gap-2 bg-surface-container-high px-3.5 py-1 rounded-full shadow-xs">
 						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-						<span class="text-xs font-bold text-on-surface truncate max-w-[120px]">{activeDevice.name}</span>
-						<span class="text-[9px] font-mono text-on-surface-variant font-bold">({activeDevice.connection})</span>
+						<span class="text-xs font-bold text-on-surface truncate max-w-[120px]">{deviceInfo?.model || deviceInfo?.product || 'Unknown'}</span>
+						<span class="text-[9px] font-mono text-on-surface-variant font-bold">({activeDevice?.connection || 'USB'})</span>
 					</div>
 				</div>
 
@@ -392,7 +399,7 @@
 					<div class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
 						<div class="flex items-center justify-between">
 							<div>
-								<h3 class="text-lg font-bold text-on-surface">{activeDevice.name}</h3>
+								<h3 class="text-lg font-bold text-on-surface">{deviceInfo?.model || deviceInfo?.product || activeDevice.id}</h3>
 								<p class="text-xs text-on-surface-variant font-mono mt-0.5">Serial: {activeDevice.id}</p>
 							</div>
 							<span class="text-xs font-bold bg-primary/15 text-primary px-3 py-1 rounded-full uppercase tracking-wider">
@@ -405,28 +412,28 @@
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
 									<span class="material-symbols-outlined text-[14px] text-primary">android</span> OS Version
 								</span>
-								<span class="font-bold text-on-surface truncate">{activeDevice.androidVersion || 'Android 14'}</span>
+								<span class="font-bold text-on-surface truncate">{deviceInfo?.sdk_version ? `Android ${deviceInfo.sdk_version}` : 'Android ?'}</span>
 							</div>
 
 							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
 									<span class="material-symbols-outlined text-[14px] text-emerald-400">battery_charging_full</span> Battery
 								</span>
-								<span class="font-bold text-on-surface">{activeDevice.batteryLevel || 90}% {activeDevice.isCharging ? '(Charging)' : ''}</span>
+								<span class="font-bold text-on-surface">{deviceInfo?.battery_level ?? '?'}%</span>
 							</div>
 
 							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
-									<span class="material-symbols-outlined text-[14px] text-sky-400">aspect_ratio</span> Resolution
+									<span class="material-symbols-outlined text-[14px] text-sky-400">aspect_ratio</span> Codename
 								</span>
-								<span class="font-bold text-on-surface truncate">{activeDevice.resolution || '1440 x 3120'}</span>
+								<span class="font-bold text-on-surface truncate">{deviceInfo?.device || '-'}</span>
 							</div>
 
 							<div class="bg-surface-container-high p-3 rounded-2xl flex flex-col gap-1">
 								<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1">
-									<span class="material-symbols-outlined text-[14px] text-purple-400">memory</span> Architecture
+									<span class="material-symbols-outlined text-[14px] text-purple-400">memory</span> Product
 								</span>
-								<span class="font-bold font-mono text-on-surface">{activeDevice.abi || 'arm64-v8a'}</span>
+								<span class="font-bold font-mono text-on-surface">{deviceInfo?.product || '-'}</span>
 							</div>
 						</div>
 
@@ -436,10 +443,10 @@
 								<span class="text-on-surface-variant flex items-center gap-1.5">
 									<span class="material-symbols-outlined text-[16px] text-primary">sd_storage</span> Internal Storage
 								</span>
-								<span class="text-on-surface font-mono">{activeDevice.storageUsedGb || 64} GB / {activeDevice.storageTotalGb || 128} GB used</span>
+								<span class="text-on-surface font-mono">{deviceInfo?.storage_used ? (deviceInfo.storage_used / 1073741824).toFixed(0) : '?'} GB / {deviceInfo?.storage_total ? (deviceInfo.storage_total / 1073741824).toFixed(0) : '?'} GB used</span>
 							</div>
 							<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
-								<div class="h-full bg-primary rounded-full" style="width: {Math.round(((activeDevice.storageUsedGb || 64) / (activeDevice.storageTotalGb || 128)) * 100)}%"></div>
+								<div class="h-full bg-primary rounded-full" style="width: {deviceInfo?.storage_total && deviceInfo?.storage_used ? Math.round((deviceInfo.storage_used / deviceInfo.storage_total) * 100) : 0}%"></div>
 							</div>
 						</div>
 					</div>
@@ -608,18 +615,7 @@
 				</div>
 
 				<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
-					<div class="col-span-2 sm:col-span-3">
-						<label for="home-dev-select" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">USB Connected Device</label>
-						<select
-							id="home-dev-select"
-							bind:value={selectedDevice}
-							class="w-full bg-surface-container-high rounded-2xl px-4 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs cursor-pointer truncate"
-						>
-							{#each devices as dev (dev.id)}
-								<option value={dev.id}>{dev.name} ({dev.id})</option>
-							{/each}
-						</select>
-					</div>
+
 					<div class="col-span-1">
 						<label for="home-tcp-port" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Port</label>
 						<input
