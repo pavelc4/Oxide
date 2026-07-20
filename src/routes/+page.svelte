@@ -60,6 +60,11 @@ let deviceInfo: {
 	let uptimeStr = $state('0:00:00');
 	let lastCpuData: unknown = null;
 
+	// Recent ADB operations — empty until real ops happen
+	// ponytail: hardcoded dummy data removed; wire to audit backend when ready
+	interface AuditOp { time: string; icon: string; title: string; detail: string; }
+	let auditOps = $state<AuditOp[]>([]);
+
 	// Wireless ADB Quick Connect state
 	let wirelessIp = $state('192.168.1.100');
 	let wirelessPort = $state('5555');
@@ -510,6 +515,7 @@ let deviceInfo: {
 			</section>
 		{/if}
 
+		{#if activeDevice}
 		<!-- Performance Monitor Panel -->
 		<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm shrink-0">
 			<header class="flex items-center justify-between">
@@ -638,9 +644,11 @@ let deviceInfo: {
 				</div>
 			</div>
 		</section>
+		{/if}
 
 		<!-- Bottom Section: Quick Power Actions & Audit Operations -->
 		<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 shrink-0">
+			{#if activeDevice}
 			<!-- Power & Reboot Controls (Col 5) -->
 			<div class="lg:col-span-5 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-4 shadow-sm">
 				<div>
@@ -676,21 +684,30 @@ let deviceInfo: {
 					Reboot Recovery (Sideload)
 				</button>
 			</div>
+			{/if}
 
-			<!-- Recent Activity Stream (Col 7) -->
-			<div class="lg:col-span-7 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-3 shadow-sm">
+			<!-- Recent Activity Stream -->
+			<div class="{activeDevice ? 'lg:col-span-7' : 'lg:col-span-12'} rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-3 shadow-sm">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-on-surface flex items-center gap-2">
 						<span class="material-symbols-outlined text-primary text-[20px]">history</span>
 						Recent ADB Operations
 					</h3>
+					{#if auditOps.length > 0}
 					<button onclick={() => goto('/audit')} class="text-[11px] font-bold text-primary hover:underline">
 						View Full Audit Log ↗
 					</button>
+					{/if}
 				</div>
 
+				{#if auditOps.length === 0}
+				<div class="flex flex-col items-center justify-center py-8 text-center">
+					<span class="material-symbols-outlined text-[32px] text-on-surface-variant/40 mb-2">inbox</span>
+					<p class="text-xs text-on-surface-variant/60 font-medium">No operations yet</p>
+				</div>
+				{:else}
 				<div class="flex flex-col gap-2">
-					{#each [{ time: '10:02 AM', icon: 'usb', title: 'Device Connected', detail: 'USB 3.2 High-Speed (5037)' }, { time: '09:55 AM', icon: 'install_mobile', title: 'App Verified', detail: 'com.android.chrome (Version 124.0)' }, { time: '09:48 AM', icon: 'terminal', title: 'Shell Executed', detail: 'getprop ro.product.model' }, { time: '09:30 AM', icon: 'bolt', title: 'Fastboot Polled', detail: 'Target active slot: A' }] as act, idx (idx)}
+					{#each auditOps as act, idx (idx)}
 						<div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-high/60 text-xs">
 							<div class="flex items-center gap-2.5">
 								<span class="material-symbols-outlined text-[16px] text-primary">{act.icon}</span>
@@ -703,6 +720,7 @@ let deviceInfo: {
 						</div>
 					{/each}
 				</div>
+				{/if}
 			</div>
 		</section>
 
