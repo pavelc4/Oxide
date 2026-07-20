@@ -582,11 +582,11 @@
 					</div>
 					<button
 						onclick={() => playChime('connect')}
-						class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 active:scale-95 transition-all outline-none border-0 shadow-xs cursor-pointer"
+						class="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all shadow-xs cursor-pointer group border-0 outline-none active:scale-95"
 						title="Test audio chime"
 					>
-						<span class="material-symbols-outlined text-[16px]">volume_up</span>
-						Test Sound
+						<ShapeBadge icon="volume_up" shape="cookie7" size={28} iconSize={14} variant="primary" />
+						<span>Test Sound</span>
 					</button>
 				</div>
 
