@@ -37,6 +37,7 @@
 	let error = $state('');
 	let selectedDevice = $state('');
 	let activeDevice = $derived(devices.find((d) => d.id === selectedDevice) || devices[0] || null);
+	let hasWirelessDevice = $derived(devices.some((d) => d.connection === 'Wireless ADB'));
 
 let deviceInfo: {
 	model: string | null;
@@ -65,15 +66,19 @@ let deviceInfo: {
 	interface AuditOp { time: string; icon: string; title: string; detail: string; }
 	let auditOps = $state<AuditOp[]>([]);
 
-	// Wireless ADB Quick Connect state
-	let wirelessIp = $state('192.168.1.100');
-	let wirelessPort = $state('5555');
+	// Wireless ADB Quick Connect state — persist across navigation
+	let wirelessIp = $state(localStorage.getItem('oxide:wirelessIp') ?? '192.168.1.100');
+	let wirelessPort = $state(localStorage.getItem('oxide:wirelessPort') ?? '5555');
 	let wirelessConnecting = $state(false);
 	let wirelessStatus = $state('');
 	let wirelessError = $state('');
 
 	// TCP/IP enable state
-	let tcpipPort = $state('5555');
+	let tcpipPort = $state(localStorage.getItem('oxide:tcpipPort') ?? '5555');
+
+	$effect(() => { localStorage.setItem('oxide:wirelessIp', wirelessIp); });
+	$effect(() => { localStorage.setItem('oxide:wirelessPort', wirelessPort); });
+	$effect(() => { localStorage.setItem('oxide:tcpipPort', tcpipPort); });
 	let tcpipEnabling = $state(false);
 	let tcpipStatus = $state('');
 	let tcpipError = $state('');
@@ -432,8 +437,8 @@ let deviceInfo: {
 					<div class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
 						<div class="flex items-center justify-between">
 							<div>
-								<h3 class="text-lg font-bold text-on-surface">{deviceInfo?.model || deviceInfo?.product || activeDevice.id}</h3>
-								<p class="text-xs text-on-surface-variant font-mono mt-0.5">Serial: {activeDevice.id}</p>
+								<h3 class="text-lg font-bold text-on-surface">{deviceInfo?.model || deviceInfo?.product || activeDevice.name}</h3>
+								<p class="text-xs text-on-surface-variant font-mono mt-0.5">{activeDevice.connection === 'Wireless ADB' ? `Wireless: ${activeDevice.id}` : `Serial: ${activeDevice.id}`}</p>
 							</div>
 							<span class="text-xs font-bold bg-primary/15 text-primary px-3 py-1 rounded-full uppercase tracking-wider">
 								{activeDevice.status}
@@ -582,16 +587,27 @@ let deviceInfo: {
 		<section class="grid grid-cols-1 lg:grid-cols-12 gap-5 shrink-0">
 			<!-- Connect via IP Address (Col 6) -->
 			<div class="lg:col-span-6 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
-				<div>
-					<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
-						<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
-							<span class="material-symbols-outlined text-[18px]">cell_tower</span>
-						</div>
-						Connect via IP Address
-					</h3>
-					<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
-						Connect directly over Wi-Fi network using target device IP and ADB port (usually 5555).
-					</p>
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
+								<span class="material-symbols-outlined text-[18px]">cell_tower</span>
+							</div>
+							Connect via IP Address
+						</h3>
+						<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
+							Connect directly over Wi-Fi network using target device IP and ADB port (usually 5555).
+						</p>
+					</div>
+					{#if hasWirelessDevice}
+						<span class="flex items-center gap-1.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-400 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+							<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Connected
+						</span>
+					{:else}
+						<span class="flex items-center gap-1.5 text-[10px] font-bold bg-on-surface-variant/10 text-on-surface-variant/60 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+							<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/40"></span> Disconnected
+						</span>
+					{/if}
 				</div>
 
 				<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
@@ -646,16 +662,27 @@ let deviceInfo: {
 
 			<!-- Enable TCP/IP Port (Requires USB) (Col 6) -->
 			<div class="lg:col-span-6 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
-				<div>
-					<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
-						<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
-							<span class="material-symbols-outlined text-[18px]">usb</span>
-						</div>
-						Enable TCP/IP Port (Requires USB)
-					</h3>
-					<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
-						Connect device via USB first to enable wireless port 5555. Once activated, cable can be unplugged.
-					</p>
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
+								<span class="material-symbols-outlined text-[18px]">usb</span>
+							</div>
+							Enable TCP/IP Port (Requires USB)
+						</h3>
+						<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
+							Connect device via USB first to enable wireless port 5555. Once activated, cable can be unplugged.
+						</p>
+					</div>
+					{#if tcpipStatus}
+						<span class="flex items-center gap-1.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-400 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+							<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Enabled
+						</span>
+					{:else}
+						<span class="flex items-center gap-1.5 text-[10px] font-bold bg-on-surface-variant/10 text-on-surface-variant/60 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+							<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/40"></span> Inactive
+						</span>
+					{/if}
 				</div>
 
 				<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
