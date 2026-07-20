@@ -32,15 +32,24 @@ export class RoundedPolygon {
 		);
 	}
 
-	normalized(): RoundedPolygon {
+	normalized(padding = 0.05): RoundedPolygon {
 		const bounds = this.calculateBounds();
-		const width = bounds[2] - bounds[0];
-		const height = bounds[3] - bounds[1];
+		const minX = bounds[0];
+		const minY = bounds[1];
+		const maxX = bounds[2];
+		const maxY = bounds[3];
+		const width = maxX - minX || 1;
+		const height = maxY - minY || 1;
+
 		const side = Math.max(width, height);
-		const offsetX = (side - width) / 2 - bounds[0];
-		const offsetY = (side - height) / 2 - bounds[1];
+		const availableSize = 1 - 2 * padding;
+		const scale = availableSize / side;
+
+		const offsetX = padding + (availableSize - width * scale) / 2 - minX * scale;
+		const offsetY = padding + (availableSize - height * scale) / 2 - minY * scale;
+
 		return this.transformed((x, y) => {
-			return new Point((x + offsetX) / side, (y + offsetY) / side);
+			return new Point(x * scale + offsetX, y * scale + offsetY);
 		});
 	}
 

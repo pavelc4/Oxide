@@ -2,6 +2,7 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -261,6 +262,7 @@
 				</button>
 				<div>
 					<div class="flex items-center gap-3">
+						<ShapeBadge icon="terminal" shape="gem" size={40} iconSize={20} />
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">ADB Shell Studio</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>

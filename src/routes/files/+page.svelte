@@ -2,6 +2,7 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -51,16 +52,16 @@
 	let localPullPath = $state('');
 
 	// Bookmarked Quick Locations
-	const quickLocations = [
-		{ label: 'Internal Storage', path: '/sdcard', icon: 'smartphone' },
-		{ label: 'Downloads', path: '/sdcard/Download', icon: 'download' },
-		{ label: 'DCIM (Photos)', path: '/sdcard/DCIM', icon: 'photo_camera' },
-		{ label: 'Pictures', path: '/sdcard/Pictures', icon: 'image' },
-		{ label: 'Music', path: '/sdcard/Music', icon: 'library_music' },
-		{ label: 'Movies', path: '/sdcard/Movies', icon: 'movie' },
-		{ label: 'Documents', path: '/sdcard/Documents', icon: 'description' },
-		{ label: 'System Root', path: '/system', icon: 'settings' },
-		{ label: 'Data Partition', path: '/data', icon: 'database' }
+	const quickLocations: Array<{ label: string; path: string; icon: string; shape: import('$lib/shapes/materialShapes').MaterialShapeType | 'rounded' }> = [
+		{ label: 'Internal Storage', path: '/sdcard', icon: 'smartphone', shape: 'cookie7' },
+		{ label: 'Downloads', path: '/sdcard/Download', icon: 'download', shape: 'clover' },
+		{ label: 'DCIM (Photos)', path: '/sdcard/DCIM', icon: 'photo_camera', shape: 'sunny' },
+		{ label: 'Pictures', path: '/sdcard/Pictures', icon: 'image', shape: 'gem' },
+		{ label: 'Music', path: '/sdcard/Music', icon: 'library_music', shape: 'ghostish' },
+		{ label: 'Movies', path: '/sdcard/Movies', icon: 'movie', shape: 'arch' },
+		{ label: 'Documents', path: '/sdcard/Documents', icon: 'description', shape: 'bun' },
+		{ label: 'System Root', path: '/system', icon: 'settings', shape: 'triangle' },
+		{ label: 'Data Partition', path: '/data', icon: 'database', shape: 'pixelCircle' }
 	];
 
 	onMount(async () => {
@@ -351,6 +352,7 @@
 				</button>
 				<div>
 					<div class="flex items-center gap-3">
+						<ShapeBadge icon="folder_open" shape="clover" size={40} iconSize={20} />
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Device File Explorer</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
@@ -388,9 +390,10 @@
 					
 					<div class="flex flex-col gap-1">
 						{#each quickLocations as loc}
+							{@const isActive = currentPath === loc.path}
 							<button
 								onclick={() => navigateTo(loc.path)}
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left {currentPath === loc.path ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left {isActive ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}"
 							>
 								<span class="material-symbols-outlined text-[18px]">{loc.icon}</span>
 								<span class="truncate">{loc.label}</span>

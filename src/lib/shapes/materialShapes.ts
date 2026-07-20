@@ -112,8 +112,8 @@ export function getSlanted(): RoundedPolygon {
 
 export function getArch(): RoundedPolygon {
 	return customPolygon([
-		new PointNRound(new Offset(0.0, 0.5), cornerRound100),
-		new PointNRound(new Offset(1.0, 0.5), cornerRound100),
+		new PointNRound(new Offset(0.0, 0.0), cornerRound100),
+		new PointNRound(new Offset(1.0, 0.0), cornerRound100),
 		new PointNRound(new Offset(1.0, 1.0), cornerRound20),
 		new PointNRound(new Offset(0.0, 1.0), cornerRound20)
 	]).normalized();
@@ -224,6 +224,58 @@ export function getBun(): RoundedPolygon {
 	]).normalized();
 }
 
+export function getTriangle(): RoundedPolygon {
+	return customPolygon([
+		new PointNRound(new Offset(0.5, 0.0), cornerRound50),
+		new PointNRound(new Offset(1.0, 0.9), cornerRound30),
+		new PointNRound(new Offset(0.0, 0.9), cornerRound30)
+	]).normalized();
+}
+
+export function getDiamond(): RoundedPolygon {
+	return customPolygon([
+		new PointNRound(new Offset(0.5, 0.0), cornerRound30),
+		new PointNRound(new Offset(1.0, 0.5), cornerRound30),
+		new PointNRound(new Offset(0.5, 1.0), cornerRound30),
+		new PointNRound(new Offset(0.0, 0.5), cornerRound30)
+	]).normalized();
+}
+
+export function getHexagon(): RoundedPolygon {
+	return customPolygon([
+		new PointNRound(new Offset(0.5, 0.0), cornerRound30),
+		new PointNRound(new Offset(0.93, 0.25), cornerRound30),
+		new PointNRound(new Offset(0.93, 0.75), cornerRound30),
+		new PointNRound(new Offset(0.5, 1.0), cornerRound30),
+		new PointNRound(new Offset(0.07, 0.75), cornerRound30),
+		new PointNRound(new Offset(0.07, 0.25), cornerRound30)
+	]).normalized();
+}
+
+export function getScallop(): RoundedPolygon {
+	return customPolygon([
+		new PointNRound(new Offset(0.5, 0.0), cornerRound100),
+		new PointNRound(new Offset(0.62, 0.08), cornerRound15)
+	], 12).normalized();
+}
+
+export function getPixelCircle(): RoundedPolygon {
+	const raw = [
+		{ x: 0.35, y: 0.0 }, { x: 0.65, y: 0.0 },
+		{ x: 0.65, y: 0.12 }, { x: 0.88, y: 0.12 },
+		{ x: 0.88, y: 0.35 }, { x: 1.0, y: 0.35 },
+		{ x: 1.0, y: 0.65 }, { x: 0.88, y: 0.65 },
+		{ x: 0.88, y: 0.88 }, { x: 0.65, y: 0.88 },
+		{ x: 0.65, y: 1.0 }, { x: 0.35, y: 1.0 },
+		{ x: 0.35, y: 0.88 }, { x: 0.12, y: 0.88 },
+		{ x: 0.12, y: 0.65 }, { x: 0.0, y: 0.65 },
+		{ x: 0.0, y: 0.35 }, { x: 0.12, y: 0.35 },
+		{ x: 0.12, y: 0.12 }, { x: 0.35, y: 0.12 }
+	];
+	const pts = raw.map((p) => new PointNRound(new Offset(p.x, p.y), CornerRounding.Unrounded));
+	return customPolygon(pts).normalized();
+}
+
 export type MaterialShapeType =
 	| 'circle'
 	| 'square'
@@ -239,7 +291,12 @@ export type MaterialShapeType =
 	| 'heart'
 	| 'clover'
 	| 'burst'
-	| 'bun';
+	| 'bun'
+	| 'triangle'
+	| 'diamond'
+	| 'hexagon'
+	| 'scallop'
+	| 'pixelCircle';
 
 export function getMaterialShape(type: MaterialShapeType): RoundedPolygon {
 	switch (type) {
@@ -258,6 +315,11 @@ export function getMaterialShape(type: MaterialShapeType): RoundedPolygon {
 		case 'clover': return getClover4Leaf();
 		case 'burst': return getBurst();
 		case 'bun': return getBun();
+		case 'triangle': return getTriangle();
+		case 'diamond': return getDiamond();
+		case 'hexagon': return getHexagon();
+		case 'scallop': return getScallop();
+		case 'pixelCircle': return getPixelCircle();
 		default: return getCircle();
 	}
 }

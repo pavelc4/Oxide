@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { playChime } from '$lib/utils/audio';
 	import Select from '$lib/components/Select.svelte';
+	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
+	import type { MaterialShapeType } from '$lib/shapes/materialShapes';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -55,6 +57,7 @@
 	let terminalFontSize = $state<'12' | '14' | '16'>('14');
 	let terminalCursorStyle = $state<'block' | 'underline' | 'bar'>('block');
 	let autoGrantPermissions = $state(true);
+	let iconShape = $state<MaterialShapeType | 'rounded'>('cookie7');
 
 	$effect(() => {
 		if (typeof localStorage !== 'undefined') {
@@ -67,6 +70,7 @@
 			localStorage.setItem('oxide:terminalFontSize', terminalFontSize);
 			localStorage.setItem('oxide:terminalCursorStyle', terminalCursorStyle);
 			localStorage.setItem('oxide:autoGrantPermissions', String(autoGrantPermissions));
+			localStorage.setItem('oxide:iconShape', iconShape);
 		}
 	});
 
@@ -114,6 +118,7 @@
 			terminalFontSize = (localStorage.getItem('oxide:terminalFontSize') as '12' | '14' | '16') || '14';
 			terminalCursorStyle = (localStorage.getItem('oxide:terminalCursorStyle') as 'block' | 'underline' | 'bar') || 'block';
 			autoGrantPermissions = localStorage.getItem('oxide:autoGrantPermissions') !== 'false';
+			iconShape = (localStorage.getItem('oxide:iconShape') as MaterialShapeType | 'rounded') || 'cookie7';
 		}
 
 		await loadSettings();
@@ -326,9 +331,7 @@
 			<!-- ═══ Appearance & Theme ═══ -->
 			<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm">
 				<div class="flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-						<span class="material-symbols-outlined text-[20px]">palette</span>
-					</div>
+					<ShapeBadge icon="palette" shape="fan" size={40} iconSize={20} />
 					<div>
 						<h3 class="text-sm font-bold text-on-surface">Appearance</h3>
 						<p class="text-xs text-on-surface-variant">Theme mode, corner shapes, and Material You colors</p>
@@ -409,6 +412,8 @@
 					</div>
 				</div>
 
+
+
 				<!-- OLED True Black Toggle -->
 				<label class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-high transition-all cursor-pointer">
 					<div>
@@ -422,9 +427,7 @@
 			<!-- ═══ ADB Protocol ═══ -->
 			<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm">
 				<div class="flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-						<span class="material-symbols-outlined text-[20px]">terminal</span>
-					</div>
+					<ShapeBadge icon="terminal" shape="arch" size={40} iconSize={20} />
 					<div>
 						<h3 class="text-sm font-bold text-on-surface">ADB Protocol</h3>
 						<p class="text-xs text-on-surface-variant">Daemon port and Logcat buffer streaming</p>
@@ -457,41 +460,13 @@
 					</div>
 				</div>
 
-				<!-- ADB Shell & Terminal Customs -->
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-					<div class="flex flex-col gap-1.5">
-						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Terminal Font Size</span>
-						<Select
-							id="term-font-select"
-							bind:value={terminalFontSize}
-							options={[
-								{ value: '12', label: '12px (Compact)' },
-								{ value: '14', label: '14px (Standard)' },
-								{ value: '16', label: '16px (Large)' }
-							]}
-						/>
-					</div>
-					<div class="flex flex-col gap-1.5">
-						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Cursor Style</span>
-						<Select
-							id="term-cursor-select"
-							bind:value={terminalCursorStyle}
-							options={[
-								{ value: 'block', label: 'Block █' },
-								{ value: 'underline', label: 'Underline _' },
-								{ value: 'bar', label: 'Vertical Bar |' }
-							]}
-						/>
-					</div>
-				</div>
+
 			</section>
 
 			<!-- ═══ Security & Controls ═══ -->
 			<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
 				<div class="flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-						<span class="material-symbols-outlined text-[20px]">verified_user</span>
-					</div>
+					<ShapeBadge icon="verified_user" shape="gem" size={40} iconSize={20} />
 					<div>
 						<h3 class="text-sm font-bold text-on-surface">Security & Controls</h3>
 						<p class="text-xs text-on-surface-variant">Audit logging, confirmation prompts, and wireless pairing</p>
@@ -529,9 +504,7 @@
 			<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
-							<span class="material-symbols-outlined text-[20px]">notifications_active</span>
-						</div>
+						<ShapeBadge icon="notifications_active" shape="sunny" size={40} iconSize={20} />
 						<div>
 							<h3 class="text-sm font-bold text-on-surface">Sound & Notifications</h3>
 							<p class="text-xs text-on-surface-variant">Audio chimes, toast duration, and refresh intervals</p>
@@ -623,9 +596,7 @@
 				<!-- About & Info Card -->
 				<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm">
 					<div class="flex items-center gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container shrink-0">
-							<span class="material-symbols-outlined text-[22px]">info</span>
-						</div>
+						<ShapeBadge icon="info" shape="cookie7" size={40} iconSize={20} />
 						<div>
 							<h3 class="text-base font-bold text-on-surface">About Oxide</h3>
 							<p class="text-xs text-on-surface-variant">Version 0.1.0</p>
@@ -741,22 +712,12 @@
 				<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm relative overflow-hidden">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container">
-								<span class="material-symbols-outlined text-[20px]">groups</span>
-							</div>
+							<ShapeBadge icon="groups" shape="clover" size={38} iconSize={20} />
 							<div>
 								<h3 class="text-sm font-bold text-on-surface">Contributors</h3>
 								<span class="text-[10px] text-on-surface-variant block font-medium">{sortedContributors.length} active developer{sortedContributors.length !== 1 ? 's' : ''}</span>
 							</div>
 						</div>
-						<a
-							href="https://github.com/pavelc4/Oxide/graphs/contributors"
-							target="_blank"
-							rel="noreferrer"
-							class="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
-						>
-							View Graph <span class="material-symbols-outlined text-[14px]">open_in_new</span>
-						</a>
 					</div>
 
 					{#if contributorsLoading}
@@ -783,12 +744,12 @@
 														#{index + 1}
 													</span>
 
-													<!-- Avatar -->
-													<img
-														src={c.avatar_url}
-														alt={c.login}
-														class="w-10 h-10 rounded-full object-cover shadow-xs bg-surface-container shrink-0"
-														loading="lazy"
+													<!-- Avatar with Material 3 Shape (gem for pavelc4) -->
+													<ShapeBadge
+														imgUrl={c.avatar_url}
+														shape="gem"
+														size={44}
+														class="shrink-0 shadow-xs"
 													/>
 
 													<!-- Info -->
@@ -830,12 +791,12 @@
 														#{humanContributors.length + index + 1}
 													</span>
 
-													<!-- Avatar -->
-													<img
-														src={c.avatar_url}
-														alt={c.login}
-														class="w-10 h-10 rounded-full object-cover shadow-xs bg-surface-container shrink-0"
-														loading="lazy"
+													<!-- Avatar with Material 3 Shape (sunny for bots) -->
+													<ShapeBadge
+														imgUrl={c.avatar_url}
+														shape="sunny"
+														size={44}
+														class="shrink-0 shadow-xs"
 													/>
 
 													<!-- Info -->

@@ -2,6 +2,7 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -523,6 +524,7 @@
 				</button>
 				<div>
 					<div class="flex items-center gap-3">
+						<ShapeBadge icon="bolt" shape="sunny" size={40} iconSize={20} />
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Flasher Studio</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
@@ -532,36 +534,7 @@
 				</div>
 			</div>
 
-			<!-- Active Device Status & Refresh -->
-			<div class="flex items-center gap-3">
-				<div class="flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full shadow-xs">
-					<span class="relative flex h-2.5 w-2.5">
-						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-					</span>
-					<select
-						value={selectedDevice}
-						onchange={(e) => selectDeviceChanged(e.currentTarget.value)}
-						class="bg-transparent border-none text-xs font-semibold text-on-surface focus:outline-none cursor-pointer pr-2"
-					>
-						{#if devices.length === 0}
-							<option value="">No Device Detected</option>
-						{:else}
-							{#each devices as dev (dev.id)}
-								<option value={dev.id}>{dev.name} ({dev.mode.toUpperCase()})</option>
-							{/each}
-						{/if}
-					</select>
-				</div>
 
-				<button
-					onclick={loadDevices}
-					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
-					title="Rescan Devices"
-				>
-					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
-				</button>
-			</div>
 		</header>
 
 		<!-- Alert Banners (No Emojis!) -->
@@ -626,8 +599,8 @@
 				{#if activeTab === 'rom_planner'}
 					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 overflow-hidden min-h-0 shadow-sm">
 						<div>
-							<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
-								<span class="material-symbols-outlined text-primary">auto_mode</span>
+							<h3 class="text-base font-bold text-on-surface flex items-center gap-2.5">
+								<ShapeBadge icon="auto_mode" shape="cookie7" size={42} iconSize={22} />
 								Batch ROM Flash Planner
 							</h3>
 							<p class="text-xs text-on-surface-variant mt-0.5">Click box to open File Manager or drop a factory ROM payload directory.</p>
@@ -747,8 +720,8 @@
 					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 overflow-y-auto shadow-sm">
 						<div class="flex flex-col gap-5">
 							<div>
-								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
-									<span class="material-symbols-outlined text-primary">flash_on</span>
+								<h3 class="text-base font-bold text-on-surface flex items-center gap-2.5">
+									<ShapeBadge icon="flash_on" shape="arch" size={42} iconSize={22} />
 									Single Partition Image Flasher
 								</h3>
 								<p class="text-xs text-on-surface-variant mt-0.5">Flash an individual partition image (.img / .bin) directly to the connected target device.</p>
@@ -821,8 +794,8 @@
 					<div class="flex-1 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-5 shadow-sm">
 						<div class="flex flex-col gap-5">
 							<div>
-								<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
-									<span class="material-symbols-outlined text-primary">install_mobile</span>
+								<h3 class="text-base font-bold text-on-surface flex items-center gap-2.5">
+									<ShapeBadge icon="install_mobile" shape="gem" size={42} iconSize={22} />
 									ADB Sideload Package Manager
 								</h3>
 								<p class="text-xs text-on-surface-variant mt-0.5">Sideload OTA updates, system zip patches, or custom recovery packages when device is in Sideload Mode.</p>
@@ -891,14 +864,10 @@
 						<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
 							<div>
 								<div class="flex items-center gap-3">
-									<h3 class="text-base font-bold text-on-surface flex items-center gap-2">
-										<span class="material-symbols-outlined text-primary">terminal</span>
+									<h3 class="text-base font-bold text-on-surface flex items-center gap-2.5">
+										<ShapeBadge icon="terminal" shape="ghostish" size={42} iconSize={22} />
 										Fastboot Interactive Console
 									</h3>
-									<span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-										Ready
-									</span>
 								</div>
 								<p class="text-xs text-on-surface-variant mt-0.5">Execute direct fastboot protocol sub-commands against connected target.</p>
 							</div>
@@ -1035,7 +1004,7 @@
 				<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
 					<div class="flex items-center justify-between">
 						<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-							<span class="material-symbols-outlined text-primary text-[18px]">swap_horiz</span>
+							<ShapeBadge icon="swap_horiz" shape="clover" size={30} iconSize={16} />
 							Slot Manager (A/B)
 						</h3>
 						<span class="text-[10px] font-bold bg-primary/15 text-primary px-2.5 py-0.5 rounded-full uppercase font-mono">
@@ -1076,7 +1045,7 @@
 				<!-- Device State & Quick Reboot Actions -->
 				<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-3 shadow-sm">
 					<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2 mb-1">
-						<span class="material-symbols-outlined text-primary text-[18px]">power_settings_new</span>
+						<ShapeBadge icon="power_settings_new" shape="sunny" size={30} iconSize={16} />
 						Reboot Controls
 					</h3>
 
@@ -1109,7 +1078,7 @@
 				<!-- Safety & Reset Action -->
 				<section class="rounded-[32px] bg-error/10 p-6 flex flex-col gap-3 shadow-sm">
 					<h3 class="text-xs font-bold text-error uppercase tracking-wider flex items-center gap-2">
-						<span class="material-symbols-outlined text-error text-[18px]">warning</span>
+						<ShapeBadge icon="warning" shape="burst" size={30} iconSize={16} bgClass="bg-error/20" textClass="text-error" />
 						Dangerous Wipe Actions
 					</h3>
 					<p class="text-[11px] text-on-surface-variant leading-relaxed">Perform factory reset by clearing user data & cache partitions.</p>

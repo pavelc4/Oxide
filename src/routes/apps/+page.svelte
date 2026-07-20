@@ -10,6 +10,7 @@
 	import InstallModal from './components/InstallModal.svelte';
 	import BatchActionBar from './components/BatchActionBar.svelte';
 	import PaginationControls from './components/PaginationControls.svelte';
+	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -514,6 +515,7 @@
 				</button>
 				<div>
 					<div class="flex items-center gap-3">
+						<ShapeBadge icon="apps" shape="cookie7" size={40} iconSize={20} />
 						<h2 class="text-2xl font-bold tracking-tight text-on-surface">App Manager Studio</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
@@ -533,9 +535,9 @@
 				</button>
 				<button
 					onclick={() => (showInstallModal = true)}
-					class="flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-xs font-bold text-on-primary hover:brightness-110 transition-all shadow-sm"
+					class="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:brightness-110 transition-all shadow-sm active:scale-95"
 				>
-					<span class="material-symbols-outlined text-[18px]">install_mobile</span>
+					<ShapeBadge shape="pixelCircle" icon="install_mobile" size={24} iconSize={13} bgClass="bg-on-primary/20" textClass="text-on-primary" />
 					Install APK
 				</button>
 			</div>

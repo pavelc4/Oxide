@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Sparkline from '$lib/components/Sparkline.svelte';
+	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -590,9 +591,7 @@ let deviceInfo: {
 				<div class="flex items-start justify-between gap-3">
 					<div>
 						<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
-							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
-								<span class="material-symbols-outlined text-[18px]">cell_tower</span>
-							</div>
+							<ShapeBadge icon="cell_tower" shape="clover" size={36} iconSize={18} />
 							Connect via IP Address
 						</h3>
 						<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
@@ -665,9 +664,7 @@ let deviceInfo: {
 				<div class="flex items-start justify-between gap-3">
 					<div>
 						<h3 class="text-base font-bold tracking-tight text-on-surface flex items-center gap-2 mb-1">
-							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container shrink-0">
-								<span class="material-symbols-outlined text-[18px]">usb</span>
-							</div>
+							<ShapeBadge icon="usb" shape="arch" size={36} iconSize={18} />
 							Enable TCP/IP Port (Requires USB)
 						</h3>
 						<p class="text-xs text-on-surface-variant leading-relaxed mt-1">
@@ -739,7 +736,7 @@ let deviceInfo: {
 			<div class="lg:col-span-5 rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-4 shadow-sm">
 				<div>
 					<h3 class="text-sm font-bold text-on-surface flex items-center gap-2 mb-1">
-						<span class="material-symbols-outlined text-primary text-[20px]">power_settings_new</span>
+						<ShapeBadge icon="power_settings_new" shape="sunny" size={36} iconSize={18} />
 						Quick Power & Reboot Control
 					</h3>
 					<p class="text-xs text-on-surface-variant">Send instant reboot commands to connected target</p>
@@ -748,25 +745,25 @@ let deviceInfo: {
 				<div class="grid grid-cols-2 gap-2 text-xs">
 					<button
 						onclick={() => rebootDevice('normal')}
-						class="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
+						class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
 					>
-						<span class="material-symbols-outlined text-[16px] text-emerald-400">restart_alt</span>
+						<ShapeBadge shape="sunny" icon="restart_alt" size={26} iconSize={14} bgClass="bg-emerald-500/20" textClass="text-emerald-400" />
 						Reboot System
 					</button>
 					<button
 						onclick={() => rebootDevice('bootloader')}
-						class="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
+						class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
 					>
-						<span class="material-symbols-outlined text-[16px] text-amber-400">memory</span>
+						<ShapeBadge shape="triangle" icon="memory" size={26} iconSize={14} bgClass="bg-amber-500/20" textClass="text-amber-400" />
 						Bootloader Mode
 					</button>
 				</div>
 
 				<button
 					onclick={() => rebootDevice('recovery')}
-					class="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs transition-all w-full"
+					class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs transition-all w-full"
 				>
-					<span class="material-symbols-outlined text-[16px] text-sky-400">build</span>
+					<ShapeBadge shape="diamond" icon="build" size={26} iconSize={14} bgClass="bg-sky-500/20" textClass="text-sky-400" />
 					Reboot Recovery (Sideload)
 				</button>
 			</div>
@@ -776,7 +773,7 @@ let deviceInfo: {
 			<div class="{activeDevice ? 'lg:col-span-7' : 'lg:col-span-12'} rounded-[32px] bg-surface-container p-6 flex flex-col justify-between gap-3 shadow-sm">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-on-surface flex items-center gap-2">
-						<span class="material-symbols-outlined text-primary text-[20px]">history</span>
+						<ShapeBadge icon="history" shape="burst" size={36} iconSize={18} />
 						Recent ADB Operations
 					</h3>
 					{#if auditOps.length > 0}

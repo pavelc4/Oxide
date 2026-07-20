@@ -1,38 +1,63 @@
 <script lang="ts">
     import { page } from '$app/stores';
+    import ShapeBadge from '$lib/components/ShapeBadge.svelte';
+    import type { MaterialShapeType } from '$lib/shapes/materialShapes';
+    import { onMount } from 'svelte';
+
+    let sidebarShape = $state<MaterialShapeType | 'rounded'>('cookie7');
+
+    onMount(() => {
+        if (typeof localStorage !== 'undefined') {
+            const saved = localStorage.getItem('oxide:iconShape') as MaterialShapeType | 'rounded';
+            if (saved) sidebarShape = saved;
+        }
+    });
+
+    const navItems = [
+        { href: '/', icon: 'devices', label: 'Devices' },
+        { href: '/apps', icon: 'apps', label: 'Apps' },
+        { href: '/files', icon: 'folder_open', label: 'Files' },
+        { href: '/process-manager', icon: 'memory', label: 'Process' },
+        { href: '/shell', icon: 'terminal', label: 'Shell' },
+        { href: '/flasher', icon: 'bolt', label: 'Flasher' },
+        { href: '/logcat', icon: 'subtitles', label: 'Logcat' },
+        { href: '/audit', icon: 'history', label: 'Audit' }
+    ];
 </script>
 
 <nav class="flex w-16 flex-col items-center justify-between py-6 shrink-0 h-screen bg-surface">
     <!-- Top Links -->
-    <div class="flex flex-col items-center gap-4 overflow-y-auto min-h-0">
+    <div class="flex flex-col items-center gap-3 overflow-y-auto min-h-0">
+        <!-- Brand Logo Badge -->
         <a
             href="/"
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary transition-all hover:brightness-110 active:scale-95 shadow-sm"
+            class="flex shrink-0 items-center justify-center transition-all hover:brightness-110 active:scale-95 no-underline mb-2"
             title="Oxide"
         >
-            <span class="material-symbols-outlined text-[20px]">science</span>
+            <ShapeBadge icon="science" shape="gem" size={40} iconSize={20} variant="primary" />
         </a>
 
-        {#each [
-          { href: '/', icon: 'devices', label: 'Devices' },
-          { href: '/apps', icon: 'apps', label: 'Apps' },
-          { href: '/files', icon: 'folder_open', label: 'Files' },
-          { href: '/process-manager', icon: 'memory', label: 'Process' },
-          { href: '/shell', icon: 'terminal', label: 'Shell' },
-          { href: '/flasher', icon: 'bolt', label: 'Flasher' },
-          { href: '/logcat', icon: 'subtitles', label: 'Logcat' },
-          { href: '/audit', icon: 'history', label: 'Audit' },
-        ] as const as item}
+        <!-- Sidebar Navigation Items -->
+        {#each navItems as item}
+          {@const isActive = $page.url.pathname === item.href}
           <a
             href={item.href}
             class="group flex flex-col items-center gap-1 no-underline"
             title={item.label}
           >
-            <div
-              class="flex h-8 w-12 items-center justify-center rounded-lg {$page.url.pathname === item.href ? 'bg-primary/15 text-primary' : 'text-on-surface-variant/60 transition-colors group-hover:text-on-surface'}"
-            >
-              <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: {$page.url.pathname === item.href ? "'FILL' 1" : "'FILL' 0"};">{item.icon}</span>
-            </div>
+            {#if isActive}
+                <ShapeBadge
+                    icon={item.icon}
+                    shape={sidebarShape}
+                    size={36}
+                    iconSize={18}
+                    variant="primary"
+                />
+            {:else}
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl text-on-surface-variant/80 group-hover:bg-surface-container-high group-hover:text-on-surface transition-all">
+                    <span class="material-symbols-outlined text-[20px]">{item.icon}</span>
+                </div>
+            {/if}
           </a>
         {/each}
     </div>
@@ -43,10 +68,18 @@
         class="group flex flex-col items-center gap-1 no-underline mt-auto pt-2"
         title="Settings"
     >
-        <div
-            class="flex h-10 w-10 items-center justify-center rounded-xl {$page.url.pathname === '/settings' ? 'bg-primary/15 text-primary' : 'text-on-surface-variant/70 hover:bg-surface-container-high hover:text-on-surface'} transition-all"
-        >
-            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: {$page.url.pathname === '/settings' ? "'FILL' 1" : "'FILL' 0"};">settings</span>
-        </div>
+        {#if $page.url.pathname === '/settings'}
+            <ShapeBadge
+                icon="settings"
+                shape={sidebarShape}
+                size={36}
+                iconSize={18}
+                variant="primary"
+            />
+        {:else}
+            <div class="flex h-9 w-9 items-center justify-center rounded-xl text-on-surface-variant/80 group-hover:bg-surface-container-high group-hover:text-on-surface transition-all">
+                <span class="material-symbols-outlined text-[20px]">settings</span>
+            </div>
+        {/if}
     </a>
 </nav>
