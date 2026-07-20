@@ -3,6 +3,25 @@ html {
 }
 
 :root,
+[data-corner='expressive'] {
+	--radius-card: 32px;
+	--radius-panel: 28px;
+	--radius-btn: 16px;
+}
+
+[data-corner='medium'] {
+	--radius-card: 20px;
+	--radius-panel: 18px;
+	--radius-btn: 12px;
+}
+
+[data-corner='compact'] {
+	--radius-card: 12px;
+	--radius-panel: 10px;
+	--radius-btn: 8px;
+}
+
+:root,
 [data-theme='dark'] {
 	--primary: #a8c7fa;
 	--onPrimary: #0a3055;
@@ -113,3 +132,15 @@ html {
 		--outline: #85746b;
 	}
 }
+
+/* Dynamic Corner Radius Overrides */
+.rounded-\[32px\],
+.rounded-\[28px\],
+.rounded-3xl {
+	border-radius: var(--radius-card, 32px) !important;
+}
+
+.rounded-2xl {
+	border-radius: var(--radius-btn, 16px) !important;
+}
+

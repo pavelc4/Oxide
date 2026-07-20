@@ -533,7 +533,7 @@
 									>
 										<td class="py-2.5 px-3 rounded-l-xl">
 											<div class="flex items-center gap-3">
-												<span class="material-symbols-outlined text-[22px] shrink-0 {file.is_dir ? 'text-amber-400 font-fill' : 'text-primary/80'}">
+												<span class="material-symbols-outlined text-[22px] shrink-0 {file.is_dir ? 'text-primary font-fill' : 'text-primary/80'}">
 													{getFileIcon(file.name, file.is_dir)}
 												</span>
 												<span class="font-semibold text-on-surface group-hover:text-primary transition-colors truncate">{file.name}</span>
@@ -560,7 +560,7 @@
 									onclick={() => handleItemClick(file)}
 									class="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group text-center {selectedFile?.name === file.name ? 'bg-primary-container/30' : 'bg-surface-container-high/40 hover:bg-surface-container-highest'}"
 								>
-									<span class="material-symbols-outlined text-[36px] {file.is_dir ? 'text-amber-400' : 'text-primary/80'}">
+									<span class="material-symbols-outlined text-[36px] {file.is_dir ? 'text-primary' : 'text-primary/80'}">
 										{getFileIcon(file.name, file.is_dir)}
 									</span>
 									<span class="text-xs font-semibold text-on-surface truncate w-full group-hover:text-primary transition-colors">{file.name}</span>
@@ -584,7 +584,7 @@
 						</div>
 
 						<div class="flex flex-col items-center p-4 rounded-2xl bg-surface-container-high/50 gap-2">
-							<span class="material-symbols-outlined text-[48px] {selectedFile.is_dir ? 'text-amber-400' : 'text-primary'}">
+							<span class="material-symbols-outlined text-[48px] text-primary">
 								{getFileIcon(selectedFile.name, selectedFile.is_dir)}
 							</span>
 							<span class="text-xs font-bold text-on-surface text-center break-all">{selectedFile.name}</span>

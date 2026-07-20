@@ -6,6 +6,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 	import type { MaterialShapeType } from '$lib/shapes/materialShapes';
+	import { applyThemeColorToDocument } from '$lib/theme';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -74,12 +75,30 @@
 		}
 	});
 
+	// Dynamic OLED True Black Mode Effect
+	$effect(() => {
+		if (typeof document !== 'undefined') {
+			const root = document.documentElement;
+			if (oledMode) {
+				root.style.setProperty('--background', '#000000');
+				root.style.setProperty('--surface', '#000000');
+				root.style.setProperty('--surfaceContainerLowest', '#000000');
+			} else if (selectedSeedColor) {
+				applyThemeColor(selectedSeedColor);
+			}
+		}
+	});
+
 	// GitHub Contributors (fetched & cached)
 	let contributors = $state<GitHubContributor[]>([]);
 	let contributorsLoading = $state(true);
 
 	// Theme Color Seeds
-	let selectedSeedColor = $state('#ffb784');
+	let selectedSeedColor = $state(
+		typeof localStorage !== 'undefined'
+			? localStorage.getItem('oxide:seedColor') || '#ffb784'
+			: '#ffb784'
+	);
 	interface ThemeSeed {
 		name: string;
 		hex: string;
@@ -92,7 +111,13 @@
 		{ name: 'Neon Emerald', hex: '#34d399', colors: ['#68dcac', '#bfece0', '#384c46', '#a8c8ff'] },
 		{ name: 'Cyber Cyan', hex: '#38bdf8', colors: ['#9acbfa', '#d6e3f7', '#3a4856', '#e9b9d6'] },
 		{ name: 'Deep Violet', hex: '#c084fc', colors: ['#d8b9ff', '#eedcff', '#494254', '#ffb784'] },
-		{ name: 'Pastel Lilac', hex: '#f472b6', colors: ['#f4b9e2', '#fde8f5', '#4e4049', '#ffe08a'] }
+		{ name: 'Pastel Lilac', hex: '#f472b6', colors: ['#f4b9e2', '#fde8f5', '#4e4049', '#ffe08a'] },
+		{ name: 'Sapphire Blue', hex: '#3b82f6', colors: ['#93c5fd', '#dbeafe', '#1e3a8a', '#93c5fd'] },
+		{ name: 'Sunset Orange', hex: '#f97316', colors: ['#fdba74', '#ffedd5', '#7c2d12', '#fdba74'] },
+		{ name: 'Electric Indigo', hex: '#6366f1', colors: ['#a5b4fc', '#e0e7ff', '#312e81', '#a5b4fc'] },
+		{ name: 'Crimson Ruby', hex: '#e11d48', colors: ['#fda4af', '#ffe4e6', '#881337', '#fda4af'] },
+		{ name: 'Mint Jade', hex: '#14b8a6', colors: ['#5eead4', '#ccfbf1', '#134e4a', '#5eead4'] },
+		{ name: 'Golden Canary', hex: '#eab308', colors: ['#fde047', '#fef9c3', '#713f12', '#fde047'] }
 	];
 
 	onMount(async () => {
@@ -119,6 +144,13 @@
 			terminalCursorStyle = (localStorage.getItem('oxide:terminalCursorStyle') as 'block' | 'underline' | 'bar') || 'block';
 			autoGrantPermissions = localStorage.getItem('oxide:autoGrantPermissions') !== 'false';
 			iconShape = (localStorage.getItem('oxide:iconShape') as MaterialShapeType | 'rounded') || 'cookie7';
+			const savedCorner = (localStorage.getItem('oxide:cornerRadius') as 'expressive' | 'medium' | 'compact') || 'expressive';
+			applyCornerRadius(savedCorner);
+
+			const savedSeed = localStorage.getItem('oxide:seedColor');
+			if (savedSeed) {
+				applyThemeColor(savedSeed);
+			}
 		}
 
 		await loadSettings();
@@ -197,16 +229,20 @@
 		loading = true;
 		error = '';
 		try {
+			const savedMode = typeof localStorage !== 'undefined' ? localStorage.getItem('oxide:themeMode') : null;
 			if (isTauri && invoke) {
 				const cfg = await safeInvoke<AppConfig>('get_config');
 				if (cfg) {
-					currentTheme = cfg.theme || 'dark';
+					currentTheme = savedMode || cfg.theme || 'dark';
 					auditEnabled = cfg.audit_enabled ?? true;
 					setupCompleted = cfg.setup_completed ?? true;
 				}
 			} else {
-				currentTheme = 'dark';
+				currentTheme = savedMode || 'dark';
 				auditEnabled = true;
+			}
+			if (typeof document !== 'undefined') {
+				document.documentElement.setAttribute('data-theme', currentTheme);
 			}
 		} catch (e) {
 			console.warn('Could not load config:', e);
@@ -242,19 +278,66 @@
 		}
 	}
 
+	function hexToHsl(hex: string): { h: number; s: number; l: number } {
+		const clean = hex.replace('#', '');
+		const r = parseInt(clean.substring(0, 2), 16) / 255;
+		const g = parseInt(clean.substring(2, 4), 16) / 255;
+		const b = parseInt(clean.substring(4, 6), 16) / 255;
+
+		const max = Math.max(r, g, b);
+		const min = Math.min(r, g, b);
+		let h = 0, s = 0;
+		const l = (max + min) / 2;
+
+		if (max !== min) {
+			const d = max - min;
+			s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+			switch (max) {
+				case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+				case g: h = (b - r) / d + 2; break;
+				case b: h = (r - g) / d + 4; break;
+			}
+			h /= 6;
+		}
+		return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+	}
+
 	async function applyThemeColor(colorHex: string) {
 		selectedSeedColor = colorHex;
-		infoMessage = '';
-		try {
-			if (isTauri && invoke) {
-								const hex = colorHex.replace('#', '');
-				const argb = parseInt(hex, 16) | 0xff000000;
-				await safeInvoke('generate_theme', { argb });
-			}
-			infoMessage = `Matugen palette generated for accent color ${colorHex}`;
-		} catch {
-			infoMessage = `Selected color accent: ${colorHex}`;
+		customHexColor = colorHex;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('oxide:seedColor', colorHex);
 		}
+
+		applyThemeColorToDocument(colorHex);
+
+		infoMessage = `Theme color updated to ${colorHex}`;
+		setTimeout(() => { if (infoMessage.includes(colorHex)) infoMessage = ''; }, 2500);
+	}
+
+	function selectThemeMode(modeId: string) {
+		currentTheme = modeId;
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-theme', modeId);
+		}
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('oxide:themeMode', modeId);
+		}
+		if (selectedSeedColor) {
+			applyThemeColor(selectedSeedColor);
+		}
+		saveSettings();
+	}
+
+	function applyCornerRadius(radius: 'expressive' | 'medium' | 'compact') {
+		cornerRadius = radius;
+		if (typeof document !== 'undefined') {
+			document.documentElement.setAttribute('data-corner', radius);
+		}
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('oxide:cornerRadius', radius);
+		}
+		saveSettings();
 	}
 
 	function resetToDefaults() {
@@ -344,10 +427,7 @@
 					<div class="grid grid-cols-3 gap-2">
 						{#each [{ id: 'dark', label: 'Dark', icon: 'dark_mode' }, { id: 'light', label: 'Light', icon: 'light_mode' }, { id: 'auto', label: 'System', icon: 'settings_brightness' }] as mode}
 							<button
-								onclick={() => {
-									currentTheme = mode.id;
-									document.documentElement.setAttribute('data-theme', mode.id);
-								}}
+								onclick={() => selectThemeMode(mode.id)}
 								class="flex items-center justify-center gap-2 p-3 rounded-2xl text-xs font-bold transition-all {currentTheme === mode.id ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'}"
 							>
 								<span class="material-symbols-outlined text-[18px]">{mode.icon}</span>
@@ -363,7 +443,7 @@
 					<div class="grid grid-cols-3 gap-2">
 						{#each [{ id: 'expressive', label: 'Round (32px)', icon: 'rounded_corner' }, { id: 'medium', label: 'Medium (20px)', icon: 'crop_square' }, { id: 'compact', label: 'Sharp (12px)', icon: 'square' }] as shape}
 							<button
-								onclick={() => (cornerRadius = shape.id as 'expressive' | 'medium' | 'compact')}
+								onclick={() => applyCornerRadius(shape.id as 'expressive' | 'medium' | 'compact')}
 								class="flex flex-col items-center gap-1 p-3 rounded-2xl text-xs font-bold transition-all {cornerRadius === shape.id ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'}"
 							>
 								<span class="material-symbols-outlined text-[18px]">{shape.icon}</span>
@@ -373,20 +453,10 @@
 					</div>
 				</div>
 
-				<!-- Theme Color Swatches & Custom Picker -->
+				<!-- Theme Color Swatches -->
 				<div class="flex flex-col gap-2">
 					<div class="flex items-center justify-between">
 						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Theme Color</span>
-						<div class="flex items-center gap-2">
-							<input
-								type="color"
-								bind:value={customHexColor}
-								onchange={() => applyThemeColor(customHexColor)}
-								class="w-6 h-6 rounded-full cursor-pointer bg-transparent border-0"
-								title="Choose custom accent color"
-							/>
-							<span class="text-[10px] font-mono text-on-surface-variant font-bold">{selectedSeedColor}</span>
-						</div>
 					</div>
 					<div class="flex items-center gap-4 py-1 overflow-x-auto">
 						{#each themeSeeds as seed}
@@ -512,7 +582,7 @@
 					</div>
 					<button
 						onclick={() => playChime('connect')}
-						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 transition-all shadow-xs"
+						class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 active:scale-95 transition-all outline-none border-0 shadow-xs cursor-pointer"
 						title="Test audio chime"
 					>
 						<span class="material-symbols-outlined text-[16px]">volume_up</span>
@@ -856,7 +926,7 @@
 		width: 44px;
 		height: 26px;
 		border-radius: 13px;
-		background: var(--md-sys-color-surface-container-highest, #444);
+		background: var(--surfaceContainerHighest, #3b2d25);
 		position: relative;
 		transition: background 0.2s ease;
 	}
@@ -867,15 +937,15 @@
 		width: 20px;
 		height: 20px;
 		border-radius: 50%;
-		background: var(--md-sys-color-on-surface-variant, #aaa);
-		transition: transform 0.2s ease, background 0.2s ease;
+		background: var(--onSurfaceVariant, #9f8c85);
+		transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s ease;
 	}
 	.toggle-switch.active .toggle-track {
-		background: var(--md-sys-color-primary, #ffb784);
+		background: var(--primary);
 	}
 	.toggle-switch.active .toggle-thumb {
 		transform: translateX(18px);
-		background: var(--md-sys-color-on-primary, #1a1a1a);
+		background: var(--onPrimary);
 	}
 	input[type="text"] {
 		background-color: var(--surfaceContainerHigh, #2f241d);
