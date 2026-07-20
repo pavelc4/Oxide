@@ -2,6 +2,8 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { playChime } from '$lib/utils/audio';
+	import Select from '$lib/components/Select.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -19,6 +21,7 @@
 		avatar_url: string;
 		html_url: string;
 		contributions: number;
+		type?: string;
 	}
 
 	// State
@@ -39,9 +42,36 @@
 	let logcatBufferLimit = $state<'1000' | '5000' | '10000' | 'unlimited'>('5000');
 	let adbDaemonPort = $state('5037');
 
+	// Sound & Notifications Customization States
+	let soundEnabled = $state(true);
+	let deviceSoundEnabled = $state(true);
+	let installSoundEnabled = $state(true);
+	let toastDuration = $state<'2' | '4' | '6'>('4');
+	let perfRefreshInterval = $state<'1' | '2' | '5'>('2');
+
+	// Extended Customization States
+	let customHexColor = $state('#ffb784');
+	let oledMode = $state(false);
+	let terminalFontSize = $state<'12' | '14' | '16'>('14');
+	let terminalCursorStyle = $state<'block' | 'underline' | 'bar'>('block');
+	let autoGrantPermissions = $state(true);
+
+	$effect(() => {
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('oxide:soundEnabled', String(soundEnabled));
+			localStorage.setItem('oxide:deviceSoundEnabled', String(deviceSoundEnabled));
+			localStorage.setItem('oxide:installSoundEnabled', String(installSoundEnabled));
+			localStorage.setItem('oxide:toastDuration', toastDuration);
+			localStorage.setItem('oxide:perfRefreshInterval', perfRefreshInterval);
+			localStorage.setItem('oxide:oledMode', String(oledMode));
+			localStorage.setItem('oxide:terminalFontSize', terminalFontSize);
+			localStorage.setItem('oxide:terminalCursorStyle', terminalCursorStyle);
+			localStorage.setItem('oxide:autoGrantPermissions', String(autoGrantPermissions));
+		}
+	});
+
 	// GitHub Contributors (fetched & cached)
 	let contributors = $state<GitHubContributor[]>([]);
-	let showAllContributors = $state(false);
 	let contributorsLoading = $state(true);
 
 	// Theme Color Seeds
@@ -74,6 +104,18 @@
 			isTauri = false;
 		}
 
+		if (typeof localStorage !== 'undefined') {
+			soundEnabled = localStorage.getItem('oxide:soundEnabled') !== 'false';
+			deviceSoundEnabled = localStorage.getItem('oxide:deviceSoundEnabled') !== 'false';
+			installSoundEnabled = localStorage.getItem('oxide:installSoundEnabled') !== 'false';
+			toastDuration = (localStorage.getItem('oxide:toastDuration') as '2' | '4' | '6') || '4';
+			perfRefreshInterval = (localStorage.getItem('oxide:perfRefreshInterval') as '1' | '2' | '5') || '2';
+			oledMode = localStorage.getItem('oxide:oledMode') === 'true';
+			terminalFontSize = (localStorage.getItem('oxide:terminalFontSize') as '12' | '14' | '16') || '14';
+			terminalCursorStyle = (localStorage.getItem('oxide:terminalCursorStyle') as 'block' | 'underline' | 'bar') || 'block';
+			autoGrantPermissions = localStorage.getItem('oxide:autoGrantPermissions') !== 'false';
+		}
+
 		await loadSettings();
 		await loadContributors();
 	});
@@ -101,12 +143,13 @@
 
 			const res = await fetch('https://api.github.com/repos/pavelc4/Oxide/contributors?per_page=20');
 			if (res.ok) {
-				const data: GitHubContributor[] = await res.json();
+				const data: (GitHubContributor & { type?: string })[] = await res.json();
 				contributors = data.map((c) => ({
 					login: c.login,
 					avatar_url: c.avatar_url,
 					html_url: c.html_url,
-					contributions: c.contributions
+					contributions: c.contributions,
+					type: c.type || (c.login.toLowerCase().includes('bot') ? 'Bot' : 'User')
 				}));
 				if (typeof localStorage !== 'undefined') {
 					localStorage.setItem(cacheKey, JSON.stringify(contributors));
@@ -114,14 +157,24 @@
 				}
 			}
 		} catch {
-			// Fallback: at least show the owner
+			// Fallback: default mock contributors if offline / API rate limited
 			if (contributors.length === 0) {
-				contributors = [{
-					login: 'pavelc4',
-					avatar_url: 'https://github.com/pavelc4.png',
-					html_url: 'https://github.com/pavelc4',
-					contributions: 0
-				}];
+				contributors = [
+					{
+						login: 'pavelc4',
+						avatar_url: 'https://github.com/pavelc4.png',
+						html_url: 'https://github.com/pavelc4',
+						contributions: 42,
+						type: 'User'
+					},
+					{
+						login: 'dependabot[bot]',
+						avatar_url: 'https://avatars.githubusercontent.com/in/29110?v=4',
+						html_url: 'https://github.com/apps/dependabot',
+						contributions: 7,
+						type: 'Bot'
+					}
+				];
 			}
 		} finally {
 			contributorsLoading = false;
@@ -211,9 +264,16 @@
 		saveSettings();
 	}
 
-	// Derived: lead contributor is first, others are the rest
-	let leadContributor = $derived(contributors[0] ?? null);
-	let otherContributors = $derived(contributors.slice(1));
+	// Derived: sorted contributors separated into humans and bots
+	let sortedContributors = $derived(
+		[...contributors].sort((a, b) => b.contributions - a.contributions)
+	);
+	let humanContributors = $derived(
+		sortedContributors.filter((c) => c.type !== 'Bot' && !c.login.toLowerCase().includes('bot'))
+	);
+	let botContributors = $derived(
+		sortedContributors.filter((c) => c.type === 'Bot' || c.login.toLowerCase().includes('bot'))
+	);
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
@@ -310,9 +370,21 @@
 					</div>
 				</div>
 
-				<!-- Theme Color Swatches -->
+				<!-- Theme Color Swatches & Custom Picker -->
 				<div class="flex flex-col gap-2">
-					<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Theme Color</span>
+					<div class="flex items-center justify-between">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Theme Color</span>
+						<div class="flex items-center gap-2">
+							<input
+								type="color"
+								bind:value={customHexColor}
+								onchange={() => applyThemeColor(customHexColor)}
+								class="w-6 h-6 rounded-full cursor-pointer bg-transparent border-0"
+								title="Choose custom accent color"
+							/>
+							<span class="text-[10px] font-mono text-on-surface-variant font-bold">{selectedSeedColor}</span>
+						</div>
+					</div>
 					<div class="flex items-center gap-4 py-1 overflow-x-auto">
 						{#each themeSeeds as seed}
 							<button
@@ -336,6 +408,15 @@
 						{/each}
 					</div>
 				</div>
+
+				<!-- OLED True Black Toggle -->
+				<label class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-high transition-all cursor-pointer">
+					<div>
+						<span class="text-xs font-bold text-on-surface block">OLED True Black Mode</span>
+						<span class="text-[11px] text-on-surface-variant">Use pitch black (#000000) background for OLED energy saving</span>
+					</div>
+					<div class="toggle-switch" class:active={oledMode}><input type="checkbox" bind:checked={oledMode} class="sr-only" /><span class="toggle-track"><span class="toggle-thumb"></span></span></div>
+				</label>
 			</section>
 
 			<!-- ═══ ADB Protocol ═══ -->
@@ -358,21 +439,49 @@
 							type="text"
 							bind:value={adbDaemonPort}
 							placeholder="5037"
-							class="bg-surface-container-high rounded-2xl px-4 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
+							class="bg-surface-container-high rounded-2xl px-4 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs border-0 outline-none"
 						/>
 					</div>
 					<div class="flex flex-col gap-1.5">
-						<label for="logcat-limit-select" class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Logcat Buffer</label>
-						<select
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Logcat Buffer</span>
+						<Select
 							id="logcat-limit-select"
 							bind:value={logcatBufferLimit}
-							class="bg-surface-container-high rounded-2xl px-4 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs cursor-pointer"
-						>
-							<option value="1000">1,000 Lines</option>
-							<option value="5000">5,000 Lines (Default)</option>
-							<option value="10000">10,000 Lines</option>
-							<option value="unlimited">Unlimited (High RAM)</option>
-						</select>
+							options={[
+								{ value: '1000', label: '1,000 Lines' },
+								{ value: '5000', label: '5,000 Lines (Default)' },
+								{ value: '10000', label: '10,000 Lines' },
+								{ value: 'unlimited', label: 'Unlimited (High RAM)' }
+							]}
+						/>
+					</div>
+				</div>
+
+				<!-- ADB Shell & Terminal Customs -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+					<div class="flex flex-col gap-1.5">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Terminal Font Size</span>
+						<Select
+							id="term-font-select"
+							bind:value={terminalFontSize}
+							options={[
+								{ value: '12', label: '12px (Compact)' },
+								{ value: '14', label: '14px (Standard)' },
+								{ value: '16', label: '16px (Large)' }
+							]}
+						/>
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Cursor Style</span>
+						<Select
+							id="term-cursor-select"
+							bind:value={terminalCursorStyle}
+							options={[
+								{ value: 'block', label: 'Block █' },
+								{ value: 'underline', label: 'Underline _' },
+								{ value: 'bar', label: 'Vertical Bar |' }
+							]}
+						/>
 					</div>
 				</div>
 			</section>
@@ -416,6 +525,82 @@
 				</div>
 			</section>
 
+			<!-- ═══ Sound & Notifications ═══ -->
+			<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+							<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-on-surface">Sound & Notifications</h3>
+							<p class="text-xs text-on-surface-variant">Audio chimes, toast duration, and refresh intervals</p>
+						</div>
+					</div>
+					<button
+						onclick={() => playChime('connect')}
+						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 transition-all shadow-xs"
+						title="Test audio chime"
+					>
+						<span class="material-symbols-outlined text-[16px]">volume_up</span>
+						Test Sound
+					</button>
+				</div>
+
+				<div class="flex flex-col gap-2">
+					<label class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-high transition-all cursor-pointer">
+						<div>
+							<span class="text-xs font-bold text-on-surface block">Audio Chimes & Sound FX</span>
+							<span class="text-[11px] text-on-surface-variant">Play subtle Web Audio chimes for events</span>
+						</div>
+						<div class="toggle-switch" class:active={soundEnabled}><input type="checkbox" bind:checked={soundEnabled} class="sr-only" /><span class="toggle-track"><span class="toggle-thumb"></span></span></div>
+					</label>
+
+					<label class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-high transition-all cursor-pointer">
+						<div>
+							<span class="text-xs font-bold text-on-surface block">Device Connection Sounds</span>
+							<span class="text-[11px] text-on-surface-variant">Play sound when ADB device connects or disconnects</span>
+						</div>
+						<div class="toggle-switch" class:active={deviceSoundEnabled}><input type="checkbox" bind:checked={deviceSoundEnabled} class="sr-only" /><span class="toggle-track"><span class="toggle-thumb"></span></span></div>
+					</label>
+
+					<label class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-high/50 hover:bg-surface-container-high transition-all cursor-pointer">
+						<div>
+							<span class="text-xs font-bold text-on-surface block">APK Install Success Chime</span>
+							<span class="text-[11px] text-on-surface-variant">Play chime when app finishes installing</span>
+						</div>
+						<div class="toggle-switch" class:active={installSoundEnabled}><input type="checkbox" bind:checked={installSoundEnabled} class="sr-only" /><span class="toggle-track"><span class="toggle-thumb"></span></span></div>
+					</label>
+				</div>
+
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+					<div class="flex flex-col gap-1.5">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Toast Dismiss Time</span>
+						<Select
+							id="toast-duration-select"
+							bind:value={toastDuration}
+							options={[
+								{ value: '2', label: '2 Seconds (Fast)' },
+								{ value: '4', label: '4 Seconds (Default)' },
+								{ value: '6', label: '6 Seconds (Relaxed)' }
+							]}
+						/>
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Dashboard Monitor Rate</span>
+						<Select
+							id="perf-interval-select"
+							bind:value={perfRefreshInterval}
+							options={[
+								{ value: '1', label: '1 Second (High Speed)' },
+								{ value: '2', label: '2 Seconds (Default)' },
+								{ value: '5', label: '5 Seconds (Battery Saver)' }
+							]}
+						/>
+					</div>
+				</div>
+			</section>
+
 			<!-- ═══ Danger Zone ═══ -->
 			<section class="rounded-[28px] bg-surface-container p-5 flex items-center justify-between shadow-sm">
 				<div>
@@ -437,72 +622,141 @@
 
 				<!-- About & Info Card -->
 				<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-5 shadow-sm">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container shrink-0">
+							<span class="material-symbols-outlined text-[22px]">info</span>
+						</div>
+						<div>
+							<h3 class="text-base font-bold text-on-surface">About Oxide</h3>
+							<p class="text-xs text-on-surface-variant">Version 0.1.0</p>
+						</div>
+					</div>
+
+					<!-- Technology Stack Icons & Badges -->
+					<div class="flex flex-col gap-2.5">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Tech Stack & Architecture</span>
+
+						<div class="grid grid-cols-2 gap-2 text-xs font-semibold">
+							<!-- Svelte 5 -->
+							<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-container-high border border-surface-container-highest/40">
+								<img src="https://skillicons.dev/icons?i=svelte" alt="Svelte" class="w-7 h-7 shrink-0 drop-shadow-xs" />
+								<div>
+									<span class="block text-on-surface font-bold text-xs">Svelte 5</span>
+									<span class="block text-[10px] text-on-surface-variant font-normal">Frontend SPA</span>
+								</div>
+							</div>
+
+							<!-- Rust -->
+							<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-container-high border border-surface-container-highest/40">
+								<img src="https://skillicons.dev/icons?i=rust" alt="Rust" class="w-7 h-7 shrink-0 drop-shadow-xs" />
+								<div>
+									<span class="block text-on-surface font-bold text-xs">Rust</span>
+									<span class="block text-[10px] text-on-surface-variant font-normal">Async Engine</span>
+								</div>
+							</div>
+
+							<!-- Tauri 2 -->
+							<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-container-high border border-surface-container-highest/40">
+								<img src="https://skillicons.dev/icons?i=tauri" alt="Tauri" class="w-7 h-7 shrink-0 drop-shadow-xs" />
+								<div>
+									<span class="block text-on-surface font-bold text-xs">Tauri 2</span>
+									<span class="block text-[10px] text-on-surface-variant font-normal">Desktop Shell</span>
+								</div>
+							</div>
+
+							<!-- Vite 6 -->
+							<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-container-high border border-surface-container-highest/40">
+								<img src="https://skillicons.dev/icons?i=vite" alt="Vite" class="w-7 h-7 shrink-0 drop-shadow-xs" />
+								<div>
+									<span class="block text-on-surface font-bold text-xs">Vite 6</span>
+									<span class="block text-[10px] text-on-surface-variant font-normal">Fast Bundler</span>
+								</div>
+							</div>
+
+							<!-- TypeScript -->
+							<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-container-high border border-surface-container-highest/40">
+								<img src="https://skillicons.dev/icons?i=ts" alt="TypeScript" class="w-7 h-7 shrink-0 drop-shadow-xs" />
+								<div>
+									<span class="block text-on-surface font-bold text-xs">TypeScript</span>
+									<span class="block text-[10px] text-on-surface-variant font-normal">Type Safety</span>
+								</div>
+							</div>
+
+							<!-- Tailwind CSS -->
+							<div class="flex items-center gap-3 p-2.5 rounded-2xl bg-surface-container-high border border-surface-container-highest/40">
+								<img src="https://skillicons.dev/icons?i=tailwind" alt="Tailwind" class="w-7 h-7 shrink-0 drop-shadow-xs" />
+								<div>
+									<span class="block text-on-surface font-bold text-xs">Tailwind</span>
+									<span class="block text-[10px] text-on-surface-variant font-normal">Modern CSS</span>
+								</div>
+							</div>
+						</div>
+					</div>
 
 					<!-- Community & License Grid -->
-					<div class="grid grid-cols-2 gap-3">
+					<div class="grid grid-cols-2 gap-3 pt-1">
 						<a
 							href="https://github.com/pavelc4/Oxide"
 							target="_blank"
 							rel="noreferrer"
-							class="rounded-2xl bg-surface-container-high p-4 flex flex-col gap-2 hover:bg-surface-container-highest transition-all no-underline group"
+							class="rounded-2xl bg-surface-container-high p-3.5 flex flex-col gap-1.5 hover:bg-surface-container-highest transition-all no-underline group"
 						>
-							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container text-on-surface-variant group-hover:text-primary">
-								<span class="material-symbols-outlined text-[20px]">code</span>
+							<div class="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container group-hover:bg-primary-container text-on-surface-variant group-hover:text-on-primary-container transition-colors">
+								<img src="https://skillicons.dev/icons?i=github" alt="GitHub" class="w-5 h-5 shrink-0" />
 							</div>
-							<span class="text-sm font-bold text-on-surface group-hover:text-primary transition-colors">Repository</span>
-							<span class="text-[11px] text-on-surface-variant leading-snug">Source code on GitHub</span>
+							<span class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors">Repository</span>
+							<span class="text-[10px] text-on-surface-variant leading-snug">Source on GitHub</span>
 						</a>
 
-						<div class="rounded-2xl bg-surface-container-high p-4 flex flex-col gap-2">
-							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container text-on-surface-variant">
-								<span class="material-symbols-outlined text-[20px]">info</span>
+						<div class="rounded-2xl bg-surface-container-high p-3.5 flex flex-col gap-1.5">
+							<div class="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container text-on-surface-variant">
+								<span class="material-symbols-outlined text-[18px]">gavel</span>
 							</div>
-							<span class="text-sm font-bold text-on-surface">License</span>
-							<span class="text-[11px] text-on-surface-variant leading-snug">Open Source Software</span>
-						</div>
-					</div>
-
-					<!-- Version Info -->
-					<div class="flex flex-col gap-2 text-xs px-1">
-						<div class="flex justify-between items-center py-1">
-							<span class="text-on-surface-variant">Version</span>
-							<span class="font-bold text-on-surface">Oxide v0.1.0</span>
-						</div>
-						<div class="flex justify-between items-center py-1">
-							<span class="text-on-surface-variant">Frontend</span>
-							<span class="font-mono text-on-surface">Svelte 5 + Vite 6</span>
-						</div>
-						<div class="flex justify-between items-center py-1">
-							<span class="text-on-surface-variant">Backend</span>
-							<span class="font-mono text-on-surface">Rust (Tauri 2 + adb_client)</span>
+							<span class="text-xs font-bold text-on-surface">GPL-3.0 License</span>
+							<span class="text-[10px] text-on-surface-variant leading-snug">GNU General Public</span>
 						</div>
 					</div>
 
 					<!-- Support -->
-					<div class="rounded-2xl bg-surface-container-high p-5 flex flex-col gap-3">
-						<h3 class="text-base font-bold text-on-surface">Support</h3>
-						<p class="text-xs text-on-surface-variant leading-relaxed">
-							If Oxide saves your time managing ADB devices, consider supporting the development.
+					<div class="rounded-2xl bg-surface-container-high p-4 flex flex-col gap-2.5">
+						<h4 class="text-xs font-bold text-on-surface flex items-center gap-2">
+							<span class="material-symbols-outlined text-primary text-[16px]">favorite</span> Support Oxide
+						</h4>
+						<p class="text-[11px] text-on-surface-variant leading-relaxed">
+							If Oxide saves your time managing ADB devices, consider supporting the project.
 						</p>
 						<a
 							href="https://github.com/sponsors/pavelc4"
 							target="_blank"
 							rel="noreferrer"
-							class="flex items-center justify-center gap-2.5 py-3 rounded-2xl bg-primary/15 text-primary hover:bg-primary/25 text-sm font-bold transition-all no-underline"
+							class="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/15 text-primary hover:bg-primary/25 text-xs font-bold transition-all no-underline"
 						>
-							<span class="material-symbols-outlined text-[20px]">favorite</span>
+							<span class="material-symbols-outlined text-[16px]">favorite</span>
 							Sponsor on GitHub
 						</a>
 					</div>
 				</section>
 
-				<!-- Contributors Card -->
-				<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
-					<div class="flex items-center gap-3">
-						<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-high text-on-surface-variant">
-							<span class="material-symbols-outlined text-[20px]">group</span>
+				<!-- Contributors Card (ALL Displayed Directly with Ranks & Stats) -->
+				<section class="rounded-[28px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm relative overflow-hidden">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-container text-on-primary-container">
+								<span class="material-symbols-outlined text-[20px]">groups</span>
+							</div>
+							<div>
+								<h3 class="text-sm font-bold text-on-surface">Contributors</h3>
+								<span class="text-[10px] text-on-surface-variant block font-medium">{sortedContributors.length} active developer{sortedContributors.length !== 1 ? 's' : ''}</span>
+							</div>
 						</div>
-						<h3 class="text-sm font-bold text-on-surface">Contributors</h3>
+						<a
+							href="https://github.com/pavelc4/Oxide/graphs/contributors"
+							target="_blank"
+							rel="noreferrer"
+							class="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+						>
+							View Graph <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+						</a>
 					</div>
 
 					{#if contributorsLoading}
@@ -510,55 +764,99 @@
 							<div class="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
 						</div>
 					{:else}
-						{#if leadContributor}
-							<a
-								href={leadContributor.html_url}
-								target="_blank"
-								rel="noreferrer"
-								class="flex items-center justify-between p-4 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group no-underline"
-							>
-								<div class="flex items-center gap-3.5">
-									<img src={leadContributor.avatar_url} alt={leadContributor.login} class="w-11 h-11 rounded-full object-cover shadow-sm bg-surface-container" loading="lazy" />
-									<div>
-										<span class="text-sm font-bold text-on-surface group-hover:text-primary transition-colors">{leadContributor.login}</span>
-										<span class="text-[11px] text-on-surface-variant block">Creator & Lead Developer</span>
+						<div class="flex flex-col gap-4">
+							<!-- Human Developers Section -->
+							{#if humanContributors.length > 0}
+								<div class="flex flex-col gap-2">
+									<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Developers</span>
+									<div class="flex flex-col gap-2">
+										{#each humanContributors as c, index (c.login)}
+											<a
+												href={c.html_url}
+												target="_blank"
+												rel="noreferrer"
+												class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest transition-all group no-underline"
+											>
+												<div class="flex items-center gap-3">
+													<!-- Rank Badge -->
+													<span class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold shrink-0 bg-surface-container text-on-surface-variant">
+														#{index + 1}
+													</span>
+
+													<!-- Avatar -->
+													<img
+														src={c.avatar_url}
+														alt={c.login}
+														class="w-10 h-10 rounded-full object-cover shadow-xs bg-surface-container shrink-0"
+														loading="lazy"
+													/>
+
+													<!-- Info -->
+													<div>
+														<div class="flex items-center gap-2">
+															<span class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors">{c.login}</span>
+															{#if index === 0}
+																<span class="text-[9px] font-bold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
+																	Lead
+																</span>
+															{/if}
+														</div>
+														<span class="text-[11px] text-on-surface-variant block font-medium mt-0.5">
+															{c.contributions > 0 ? `${c.contributions} contribution${c.contributions !== 1 ? 's' : ''}` : 'Creator & Lead Developer'}
+														</span>
+													</div>
+												</div>
+											</a>
+										{/each}
 									</div>
 								</div>
-								<span class="material-symbols-outlined text-on-surface-variant text-[20px] group-hover:text-primary transition-colors">chevron_right</span>
-							</a>
-						{/if}
+							{/if}
 
-						{#if otherContributors.length > 0}
-							<button
-								onclick={() => (showAllContributors = !showAllContributors)}
-								class="flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
-							>
-								<span class="material-symbols-outlined text-[18px]">{showAllContributors ? 'expand_less' : 'expand_more'}</span>
-								{showAllContributors ? 'Hide Contributors' : `Show ${otherContributors.length} more Contributors`}
-							</button>
+							<!-- Bots Section (Separate Sub-card) -->
+							{#if botContributors.length > 0}
+								<div class="flex flex-col gap-2 pt-1">
+									<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-1">Automated Bots</span>
+									<div class="flex flex-col gap-2">
+										{#each botContributors as c, index (c.login)}
+											<a
+												href={c.html_url}
+												target="_blank"
+												rel="noreferrer"
+												class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container-high/60 hover:bg-surface-container-high transition-all group no-underline"
+											>
+												<div class="flex items-center gap-3">
+													<!-- Rank Badge -->
+													<span class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold shrink-0 bg-surface-container/60 text-on-surface-variant/70">
+														#{humanContributors.length + index + 1}
+													</span>
 
-							{#if showAllContributors}
-								<div class="flex flex-col gap-2 animate-fade-in">
-									{#each otherContributors as c}
-										<a
-											href={c.html_url}
-											target="_blank"
-											rel="noreferrer"
-											class="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container-high/60 hover:bg-surface-container-high transition-all group no-underline"
-										>
-											<div class="flex items-center gap-3">
-												<img src={c.avatar_url} alt={c.login} class="w-9 h-9 rounded-full object-cover bg-surface-container" loading="lazy" />
-												<div>
-													<span class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors">{c.login}</span>
-													<span class="text-[11px] text-on-surface-variant block">{c.contributions} contribution{c.contributions !== 1 ? 's' : ''}</span>
+													<!-- Avatar -->
+													<img
+														src={c.avatar_url}
+														alt={c.login}
+														class="w-10 h-10 rounded-full object-cover shadow-xs bg-surface-container shrink-0"
+														loading="lazy"
+													/>
+
+													<!-- Info -->
+													<div>
+														<div class="flex items-center gap-2">
+															<span class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors">{c.login}</span>
+															<span class="text-[9px] font-bold bg-sky-500/15 text-sky-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
+																Bot
+															</span>
+														</div>
+														<span class="text-[11px] text-on-surface-variant block font-medium mt-0.5">
+															{c.contributions} contribution{c.contributions !== 1 ? 's' : ''}
+														</span>
+													</div>
 												</div>
-											</div>
-											<span class="material-symbols-outlined text-on-surface-variant text-[18px] group-hover:text-primary transition-colors">chevron_right</span>
-										</a>
-									{/each}
+											</a>
+										{/each}
+									</div>
 								</div>
 							{/if}
-						{/if}
+						</div>
 					{/if}
 				</section>
 
@@ -617,5 +915,9 @@
 	.toggle-switch.active .toggle-thumb {
 		transform: translateX(18px);
 		background: var(--md-sys-color-on-primary, #1a1a1a);
+	}
+	input[type="text"] {
+		background-color: var(--surfaceContainerHigh, #2f241d);
+		color: var(--onSurface, #efe0d9);
 	}
 </style>
