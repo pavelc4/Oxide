@@ -128,6 +128,12 @@ fn wireless_disconnect(host: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn wireless_tcpip(serial: String, port: u16) -> Result<(), String> {
+    let mut d = device::state::connect_serial(&serial);
+    device::net::wireless::enable_tcpip(&mut d, port)
+}
+
+#[tauri::command]
 fn fastboot_list() -> Vec<fastboot::flasher::FastbootDevice> {
     vec![]
 }
@@ -195,6 +201,7 @@ pub fn run() {
             get_perf,
             wireless_connect,
             wireless_disconnect,
+            wireless_tcpip,
             fastboot_list,
             fastboot_flash,
             fastboot_erase,

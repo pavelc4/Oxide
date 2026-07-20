@@ -69,6 +69,14 @@ let deviceInfo: {
 	let wirelessIp = $state('192.168.1.100');
 	let wirelessPort = $state('5555');
 	let wirelessConnecting = $state(false);
+	let wirelessStatus = $state('');
+	let wirelessError = $state('');
+
+	// TCP/IP enable state
+	let tcpipPort = $state('5555');
+	let tcpipEnabling = $state(false);
+	let tcpipStatus = $state('');
+	let tcpipError = $state('');
 
 	// Logcat System Trace State
 	let logcatLines = $state<LogEntry[]>([]);
@@ -300,16 +308,36 @@ let deviceInfo: {
 	async function handleWirelessConnect() {
 		if (!wirelessIp.trim()) return;
 		wirelessConnecting = true;
+		wirelessStatus = '';
+		wirelessError = '';
 		try {
 			if (isTauri && invoke) {
 				await safeInvoke('wireless_connect', { host: `${wirelessIp.trim()}:${wirelessPort.trim() || '5555'}` });
 			}
-			alert(`Connected wirelessly to ${wirelessIp}:${wirelessPort}!`);
+			wirelessStatus = `Connected to ${wirelessIp}:${wirelessPort}`;
 			await loadDevices();
 		} catch (e) {
-			alert(`Wireless connection error: ${e}`);
+			wirelessError = `Connection failed: ${e}`;
 		} finally {
 			wirelessConnecting = false;
+		}
+	}
+
+	async function handleEnableTcpip() {
+		if (!selectedDevice) return;
+		tcpipEnabling = true;
+		tcpipStatus = '';
+		tcpipError = '';
+		const port = parseInt(tcpipPort.trim() || '5555', 10);
+		try {
+			if (isTauri && invoke) {
+				await safeInvoke('wireless_tcpip', { serial: selectedDevice, port });
+			}
+			tcpipStatus = `TCP/IP enabled on port ${port}. You can unplug USB now.`;
+		} catch (e) {
+			tcpipError = `Failed: ${e}`;
+		} finally {
+			tcpipEnabling = false;
 		}
 	}
 </script>
@@ -604,6 +632,16 @@ let deviceInfo: {
 						{/if}
 					</button>
 				</div>
+				{#if wirelessStatus}
+					<p class="text-xs text-emerald-400 font-medium mt-1 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-[14px]">check_circle</span> {wirelessStatus}
+					</p>
+				{/if}
+				{#if wirelessError}
+					<p class="text-xs text-error font-medium mt-1 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-[14px]">error</span> {wirelessError}
+					</p>
+				{/if}
 			</div>
 
 			<!-- Enable TCP/IP Port (Requires USB) (Col 6) -->
@@ -621,13 +659,13 @@ let deviceInfo: {
 				</div>
 
 				<div class="grid grid-cols-3 sm:grid-cols-4 gap-3 text-xs">
-
 					<div class="col-span-1">
 						<label for="home-tcp-port" class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Port</label>
 						<input
 							id="home-tcp-port"
 							type="text"
-							value="5555"
+							bind:value={tcpipPort}
+							placeholder="5555"
 							class="w-full bg-surface-container-high rounded-2xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
 						/>
 					</div>
@@ -635,13 +673,34 @@ let deviceInfo: {
 
 				<div class="flex items-center gap-3 pt-1">
 					<button
-						onclick={handleWirelessConnect}
-						class="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest py-3 text-xs font-bold text-on-surface transition-all shadow-xs"
+						onclick={handleEnableTcpip}
+						class="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest py-3 text-xs font-bold text-on-surface transition-all shadow-xs disabled:opacity-50"
+						disabled={tcpipEnabling || !selectedDevice}
 					>
-						<span class="material-symbols-outlined text-[18px] text-amber-400">settings_input_antenna</span>
-						Enable TCP/IP Port
+						{#if tcpipEnabling}
+							<span class="animate-spin h-3.5 w-3.5 border-2 border-on-surface border-t-transparent rounded-full"></span>
+							Enabling...
+						{:else}
+							<span class="material-symbols-outlined text-[18px] text-amber-400">settings_input_antenna</span>
+							Enable TCP/IP Port
+						{/if}
 					</button>
 				</div>
+				{#if !selectedDevice}
+					<p class="text-[10px] text-on-surface-variant/60 font-medium flex items-center gap-1">
+						<span class="material-symbols-outlined text-[12px]">info</span> Connect a USB device first
+					</p>
+				{/if}
+				{#if tcpipStatus}
+					<p class="text-xs text-emerald-400 font-medium mt-1 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-[14px]">check_circle</span> {tcpipStatus}
+					</p>
+				{/if}
+				{#if tcpipError}
+					<p class="text-xs text-error font-medium mt-1 flex items-center gap-1.5">
+						<span class="material-symbols-outlined text-[14px]">error</span> {tcpipError}
+					</p>
+				{/if}
 			</div>
 		</section>
 		{/if}
