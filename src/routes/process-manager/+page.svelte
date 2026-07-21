@@ -3,6 +3,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
+	import ProcessRow from './components/ProcessRow.svelte';
+	import ProcessDetailsPanel from './components/ProcessDetailsPanel.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -306,115 +308,25 @@
 							</div>
 						{:else}
 							{#each filteredProcesses as proc (proc.pid)}
-								<div
-									role="button"
-									tabindex="0"
-									onclick={() => (activePid = proc.pid)}
-									onkeydown={(e) => { if (e.key === 'Enter') activePid = proc.pid; }}
-									class="flex items-center justify-between p-3.5 rounded-2xl transition-all cursor-pointer group shadow-xs {activePid === proc.pid ? 'bg-primary-container/30' : 'bg-surface-container-low hover:bg-surface-container-high'}"
-								>
-									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="flex h-10 w-10 items-center justify-center rounded-xl shrink-0 {proc.isSystem ? 'bg-purple-500/15 text-purple-400' : 'bg-primary/15 text-primary'}">
-											<span class="material-symbols-outlined text-[20px]">{proc.isSystem ? 'settings_suggest' : 'apps'}</span>
-										</div>
-										<div class="min-w-0">
-											<span class="font-bold text-on-surface block truncate font-sans text-xs">{proc.name}</span>
-											<span class="text-[10px] text-on-surface-variant/70 block font-mono">PID: {proc.pid} &bull; User: {proc.user}</span>
-										</div>
-									</div>
-
-									<div class="flex items-center gap-4 text-xs">
-										<div class="text-right">
-											<span class="font-bold block {proc.cpu > 10 ? 'text-rose-400' : 'text-emerald-400'}">{proc.cpu}% CPU</span>
-											<span class="text-[10px] text-on-surface-variant/70 block">{proc.memMb} MB RAM</span>
-										</div>
-										<span class="material-symbols-outlined text-[18px] text-on-surface-variant/60 group-hover:text-primary transition-colors">chevron_right</span>
-									</div>
-								</div>
+								<ProcessRow
+									{proc}
+									isActive={activePid === proc.pid}
+									onselect={() => (activePid = proc.pid)}
+									onkill={(e) => {
+										e.stopPropagation();
+										killProcess(proc);
+									}}
+								/>
 							{/each}
 						{/if}
 					</div>
 				</div>
 
-				<!-- Right Column: Process/Daemon Detail Inspector Panel (Col 4) -->
-				<div class="lg:col-span-4 flex flex-col justify-between rounded-[32px] bg-surface-container p-6 shadow-sm overflow-y-auto">
-					{#if activeProcess}
-						<div class="flex flex-col gap-6">
-							<!-- Header -->
-							<div class="flex flex-col items-center text-center gap-3 pt-2">
-								<div class="flex h-16 w-16 items-center justify-center rounded-2xl {activeProcess.isSystem ? 'bg-purple-500/15 text-purple-400' : 'bg-primary/15 text-primary'} shadow-inner">
-									<span class="material-symbols-outlined text-[32px]">{activeProcess.isSystem ? 'settings_suggest' : 'apps'}</span>
-								</div>
-								<div>
-									<h3 class="text-lg font-bold text-on-surface break-all">{activeProcess.name}</h3>
-									<span class="text-xs font-mono text-on-surface-variant/70 block mt-0.5">PID: {activeProcess.pid}</span>
-								</div>
-								<span class="text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider {activeProcess.isSystem ? 'bg-purple-500/15 text-purple-400' : 'bg-emerald-500/15 text-emerald-400'}">
-									{activeProcess.isSystem ? 'SYSTEM DAEMON' : 'USER APPLICATION'}
-								</span>
-							</div>
-
-							<!-- Specifications Grid -->
-							<div class="flex flex-col gap-3 text-xs">
-								<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
-									<span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">Process ID (PID)</span>
-									<span class="font-bold text-on-surface font-mono text-sm">{activeProcess.pid}</span>
-								</div>
-
-								<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
-									<span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">Process Owner / User</span>
-									<span class="font-bold text-on-surface font-mono text-xs">{activeProcess.user}</span>
-								</div>
-
-								<div class="grid grid-cols-2 gap-3">
-									<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
-										<span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">CPU Load</span>
-										<span class="font-bold font-mono text-xs {activeProcess.cpu > 10 ? 'text-rose-400' : 'text-emerald-400'}">{activeProcess.cpu}%</span>
-									</div>
-
-									<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
-										<span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">RAM Memory</span>
-										<span class="font-bold text-on-surface font-mono text-xs">{activeProcess.memMb} MB</span>
-									</div>
-								</div>
-
-								<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
-									<span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">Active Threads</span>
-									<span class="font-bold text-on-surface font-mono text-xs">{activeProcess.threads || 24} active threads</span>
-								</div>
-
-								<div class="bg-surface-container-high p-3.5 rounded-2xl flex flex-col gap-1">
-									<span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider">State & Subsystem</span>
-									<span class="font-medium text-on-surface font-mono text-[11px] leading-relaxed">{activeProcess.stateStr || 'S (sleeping/active)'}</span>
-								</div>
-							</div>
-						</div>
-
-						<!-- Action Buttons Footer -->
-						<div class="flex flex-col gap-2 pt-6">
-							<button
-								onclick={() => copyProcDetails(activeProcess)}
-								class="flex items-center justify-center gap-2 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface py-3 text-xs font-bold transition-all shadow-xs"
-							>
-								<span class="material-symbols-outlined text-[16px]">content_copy</span>
-								Copy Process Details
-							</button>
-
-							<button
-								onclick={() => killProcess(activeProcess)}
-								class="flex items-center justify-center gap-2 rounded-2xl bg-error text-on-error hover:brightness-110 py-3 text-xs font-bold transition-all shadow-sm"
-							>
-								<span class="material-symbols-outlined text-[16px]">do_not_disturb_on</span>
-								Force Stop Process
-							</button>
-						</div>
-					{:else}
-						<div class="flex flex-col items-center justify-center h-full text-on-surface-variant/70 p-6 text-center">
-							<span class="material-symbols-outlined text-[48px] opacity-40 mb-2">memory</span>
-							<p class="text-xs font-semibold">Select a process from the list to inspect daemon details</p>
-						</div>
-					{/if}
-				</div>
+				<!-- Right Column: Process Details Inspector Panel -->
+				<ProcessDetailsPanel
+					proc={activeProcess}
+					onkill={() => { if (activeProcess) killProcess(activeProcess); }}
+				/>
 
 			</div>
 		{/if}
