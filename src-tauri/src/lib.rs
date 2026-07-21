@@ -37,9 +37,39 @@ fn device_shell(serial: String, command: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn list_packages(serial: String) -> Result<Vec<String>, String> {
+fn list_packages(serial: String, filter: Option<String>) -> Result<Vec<String>, String> {
     let mut d = device::state::connect_serial(&serial);
-    Ok(device::app::manager::list_packages(&mut d, None))
+    Ok(device::app::manager::list_packages(&mut d, filter.as_deref()))
+}
+
+#[tauri::command]
+fn get_package_info(serial: String, package: String) -> Result<device::app::manager::PackageInfo, String> {
+    let mut d = device::state::connect_serial(&serial);
+    device::app::manager::get_package_info(&mut d, &package)
+}
+
+#[tauri::command]
+fn start_package_app(serial: String, package: String) -> Result<(), String> {
+    let mut d = device::state::connect_serial(&serial);
+    device::app::manager::start_package_app(&mut d, &package)
+}
+
+#[tauri::command]
+fn force_stop_package(serial: String, package: String) -> Result<(), String> {
+    let mut d = device::state::connect_serial(&serial);
+    device::app::manager::force_stop_package(&mut d, &package)
+}
+
+#[tauri::command]
+fn enable_package(serial: String, package: String) -> Result<(), String> {
+    let mut d = device::state::connect_serial(&serial);
+    device::app::manager::enable_package(&mut d, &package)
+}
+
+#[tauri::command]
+fn disable_package(serial: String, package: String) -> Result<(), String> {
+    let mut d = device::state::connect_serial(&serial);
+    device::app::manager::disable_package(&mut d, &package)
 }
 
 #[tauri::command]
@@ -187,6 +217,11 @@ pub fn run() {
             get_device_info,
             device_shell,
             list_packages,
+            get_package_info,
+            start_package_app,
+            force_stop_package,
+            enable_package,
+            disable_package,
             install_apk,
             uninstall_package,
             clear_package,

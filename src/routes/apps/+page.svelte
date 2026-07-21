@@ -68,6 +68,25 @@
 	let showInstallModal = $state(false);
 	let installing = $state(false);
 
+	// Custom Confirmation Modal state
+	let confirmModalState = $state<{
+		show: boolean;
+		title: string;
+		message: string;
+		confirmText: string;
+		icon: string;
+		isDanger: boolean;
+		action: () => void;
+	}>({
+		show: false,
+		title: '',
+		message: '',
+		confirmText: 'Confirm',
+		icon: 'warning',
+		isDanger: true,
+		action: () => {}
+	});
+
 	// Derived state for filtered list (in-memory search)
 	let filteredPackages = $derived(
 		allPackages.filter((pkg) => pkg.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -328,8 +347,19 @@
 		}
 	}
 
-	async function clearAppData(pkg: string) {
-		if (!confirm(`Are you sure you want to clear all data for ${pkg}? This cannot be undone.`)) return;
+	function requestClearData(pkg: string) {
+		confirmModalState = {
+			show: true,
+			title: 'Clear App Data',
+			message: `Are you sure you want to clear all data and cache for ${pkg}? This action cannot be undone.`,
+			confirmText: 'Wipe Data',
+			icon: 'cleaning_services',
+			isDanger: true,
+			action: () => executeClearData(pkg)
+		};
+	}
+
+	async function executeClearData(pkg: string) {
 		error = '';
 		infoMessage = '';
 		try {
@@ -363,8 +393,19 @@
 		}
 	}
 
-	async function uninstallApp(pkg: string) {
-		if (!confirm(`Uninstall ${pkg}?`)) return;
+	function requestUninstall(pkg: string) {
+		confirmModalState = {
+			show: true,
+			title: 'Uninstall Application',
+			message: `Are you sure you want to uninstall ${pkg} from ${selectedDevice}? All application data will be permanently removed.`,
+			confirmText: 'Uninstall App',
+			icon: 'delete_forever',
+			isDanger: true,
+			action: () => executeUninstall(pkg)
+		};
+	}
+
+	async function executeUninstall(pkg: string) {
 		error = '';
 		infoMessage = '';
 		try {
@@ -417,11 +458,22 @@
 		}
 	}
 
-	async function handleBatchUninstall() {
+	function requestBatchUninstall() {
 		const size = selectedPackages.size;
 		if (size === 0) return;
-		if (!confirm(`Are you sure you want to uninstall ${size} packages?`)) return;
 
+		confirmModalState = {
+			show: true,
+			title: `Batch Uninstall (${size} Packages)`,
+			message: `Are you sure you want to uninstall ${size} selected package${size > 1 ? 's' : ''} simultaneously from ${selectedDevice}?`,
+			confirmText: `Uninstall ${size} Apps`,
+			icon: 'delete_sweep',
+			isDanger: true,
+			action: () => executeBatchUninstall()
+		};
+	}
+
+	async function executeBatchUninstall() {
 		loading = true;
 		error = '';
 		infoMessage = '';
@@ -430,21 +482,20 @@
 			for (const pkg of selectedPackages) {
 				try {
 					if (isTauri && invoke) {
-						const res = await safeInvoke<{ success: boolean; message: string }>('uninstall_package', {
+						await safeInvoke('uninstall_package', {
 							serial: selectedDevice,
 							package: pkg
 						});
-						if (!res.success) failCount++;
 					}
 				} catch {
 					failCount++;
 				}
 			}
-			infoMessage = `Batch uninstall completed. Checked ${size} apps, ${size - failCount} uninstalled, ${failCount} failed.`;
 			selectedPackages.clear();
+			infoMessage = failCount > 0 ? `Finished batch uninstall with ${failCount} errors.` : 'Batch uninstall completed successfully.';
 			await fetchPackages();
 		} catch (e) {
-			error = `Batch operation failed: ${e}`;
+			error = `Batch uninstall error: ${e}`;
 		} finally {
 			loading = false;
 		}
@@ -660,9 +711,9 @@
 				{selectedAppDetails}
 				{loadingDetails}
 				onforcestop={forceStopApp}
-				oncleardata={clearAppData}
+				oncleardata={requestClearData}
 				ontogglestatus={toggleAppStatus}
-				onuninstall={uninstallApp}
+				onuninstall={requestUninstall}
 				onpullapk={pullApk}
 				onlaunch={launchApp}
 			/>
@@ -673,7 +724,7 @@
 			selectedCount={selectedPackages.size}
 			onenable={() => handleBatchStatus(true)}
 			ondisable={() => handleBatchStatus(false)}
-			onuninstall={handleBatchUninstall}
+			onuninstall={requestBatchUninstall}
 			onclear={() => selectedPackages.clear()}
 		/>
 
@@ -684,6 +735,50 @@
 			oncancel={() => (showInstallModal = false)}
 			oninstall={installApk}
 		/>
+
+		<!-- Custom Material 3 Confirmation Modal -->
+		{#if confirmModalState.show}
+			<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+				<div class="bg-surface-container rounded-[32px] p-6 max-w-md w-full shadow-2xl flex flex-col gap-5 border border-surface-container-high/60">
+					<div class="flex items-center gap-3">
+						<ShapeBadge
+							icon={confirmModalState.icon}
+							shape="burst"
+							size={44}
+							iconSize={22}
+							bgClass={confirmModalState.isDanger ? 'bg-error/20' : 'bg-primary/20'}
+							textClass={confirmModalState.isDanger ? 'text-error' : 'text-primary'}
+						/>
+						<div>
+							<h3 class="text-base font-bold text-on-surface">{confirmModalState.title}</h3>
+							<span class="text-[11px] text-on-surface-variant/80 font-medium">Confirmation Required</span>
+						</div>
+					</div>
+
+					<p class="text-xs text-on-surface-variant leading-relaxed bg-surface-container-high/40 p-4 rounded-2xl border border-surface-container-high/30">
+						{confirmModalState.message}
+					</p>
+
+					<div class="flex items-center justify-end gap-3 pt-2">
+						<button
+							onclick={() => (confirmModalState.show = false)}
+							class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-all active:scale-95 cursor-pointer border-0 outline-none"
+						>
+							Cancel
+						</button>
+						<button
+							onclick={() => {
+								confirmModalState.show = false;
+								confirmModalState.action();
+							}}
+							class="px-5 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md transition-all active:scale-95 cursor-pointer border-0 outline-none {confirmModalState.isDanger ? 'bg-error hover:brightness-110' : 'bg-primary hover:brightness-110'}"
+						>
+							{confirmModalState.confirmText}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 </main>
 
