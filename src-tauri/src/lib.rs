@@ -91,6 +91,16 @@ fn clear_package(serial: String, package: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn pull_package_apk(serial: String, package: String, destination: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = device::state::connect_serial(&serial);
+        device::app::manager::pull_package_apk(&mut d, &package, &destination)
+    })
+    .await
+    .map_err(|e| format!("Task error: {e}"))?
+}
+
+#[tauri::command]
 fn list_files(
     serial: String,
     path: String,
@@ -100,15 +110,23 @@ fn list_files(
 }
 
 #[tauri::command]
-fn pull_file(serial: String, remote: String, local: String) -> Result<(), String> {
-    let mut d = device::state::connect_serial(&serial);
-    device::file::explorer::pull_item(&mut d, &remote, &local)
+async fn pull_file(serial: String, remote: String, local: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = device::state::connect_serial(&serial);
+        device::file::explorer::pull_item(&mut d, &remote, &local)
+    })
+    .await
+    .map_err(|e| format!("Task error: {e}"))?
 }
 
 #[tauri::command]
-fn push_file(serial: String, local: String, remote: String) -> Result<(), String> {
-    let mut d = device::state::connect_serial(&serial);
-    device::file::explorer::push_item(&mut d, &local, &remote)
+async fn push_file(serial: String, local: String, remote: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = device::state::connect_serial(&serial);
+        device::file::explorer::push_item(&mut d, &local, &remote)
+    })
+    .await
+    .map_err(|e| format!("Task error: {e}"))?
 }
 
 #[tauri::command]
@@ -232,6 +250,7 @@ pub fn run() {
             install_apk,
             uninstall_package,
             clear_package,
+            pull_package_apk,
             list_files,
             pull_file,
             push_file,

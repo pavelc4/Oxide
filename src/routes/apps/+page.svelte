@@ -132,14 +132,38 @@
 	async function fetchDownloadsDir() {
 		try {
 			if (isTauri && invoke) {
-				const dirs = await safeInvoke<[string, string][]>('get_common_directories_cmd');
-				const dl = dirs.find((d) => d[0] === 'Downloads');
-				if (dl) {
-					downloadsDir = dl[1];
-				}
+				const baseDir = await safeInvoke<string>('get_default_download_dir');
+				downloadsDir = `${baseDir}/Apps`;
+			} else {
+				downloadsDir = '~/Downloads/Oxide/Apps';
+			}
+		} catch {
+			downloadsDir = '~/Downloads/Oxide/Apps';
+		}
+	}
+
+	let isPullingApk = $state(false);
+
+	async function pullApk(pkg: string) {
+		error = '';
+		infoMessage = `Pulling APK for ${pkg}... Please wait.`;
+		isPullingApk = true;
+		try {
+			const destination = downloadsDir || '~/Downloads/Oxide/Apps';
+			if (isTauri && invoke) {
+				const savePath = await safeInvoke<string>('pull_package_apk', {
+					serial: selectedDevice,
+					package: pkg,
+					destination
+				});
+				infoMessage = `APK extracted & saved to: ${savePath}`;
+			} else {
+				infoMessage = `APK extracted & saved to: ${destination}/${pkg}.apk (mock)`;
 			}
 		} catch (e) {
-			console.warn('Downloads directory fetch info:', e);
+			error = `Failed to pull APK: ${e}`;
+		} finally {
+			isPullingApk = false;
 		}
 	}
 
@@ -438,25 +462,7 @@
 		}
 	}
 
-	async function pullApk(pkg: string) {
-		error = '';
-		infoMessage = '';
-		try {
-			const destination = downloadsDir || '/tmp';
-			if (isTauri && invoke) {
-				const savePath = await safeInvoke<string>('pull_package_apk', {
-					serial: selectedDevice,
-					package: pkg,
-					destination
-				});
-				infoMessage = `APK downloaded successfully to: ${savePath}`;
-			} else {
-				infoMessage = `APK downloaded successfully to: ${destination}/${pkg}.apk (mock)`;
-			}
-		} catch (e) {
-			error = `Failed to pull APK: ${e}`;
-		}
-	}
+
 
 	function requestBatchUninstall() {
 		const size = selectedPackages.size;
@@ -567,7 +573,7 @@
 				<div>
 					<div class="flex items-center gap-3">
 						<ShapeBadge icon="apps" shape="cookie7" size={40} iconSize={20} />
-						<h2 class="text-2xl font-bold tracking-tight text-on-surface">App Manager Studio</h2>
+						<h2 class="text-2xl font-bold tracking-tight text-on-surface">App Manager</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
 						{/if}

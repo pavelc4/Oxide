@@ -126,6 +126,20 @@ pub fn clear_package(device: &mut ADBServerDevice, package: &str) -> Result<(), 
     }
 }
 
+pub fn pull_package_apk(device: &mut ADBServerDevice, package: &str, destination: &str) -> Result<String, String> {
+    let info = get_package_info(device, package)?;
+    let remote_path = info.apk_path.ok_or_else(|| format!("Could not find installed APK path for package '{package}'"))?;
+
+    let local_dest = if destination.ends_with(".apk") {
+        destination.to_string()
+    } else {
+        format!("{}/{package}.apk", destination.trim_end_matches('/'))
+    };
+
+    crate::device::file::explorer::pull_item(device, &remote_path, &local_dest)?;
+    Ok(local_dest)
+}
+
 pub fn parse_pm_output(output: &str) -> Vec<String> {
     output.lines()
         .map(|l| l.trim())
