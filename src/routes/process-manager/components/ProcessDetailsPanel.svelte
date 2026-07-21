@@ -19,6 +19,17 @@
 	}
 
 	let { proc, onkill }: Props = $props();
+
+	function formatMemory(kb: number): string {
+		if (!kb || kb <= 0) return '0 KB';
+		if (kb >= 1024 * 1024) {
+			return `${(kb / (1024 * 1024)).toFixed(1)} GB`;
+		}
+		if (kb >= 1024) {
+			return `${(kb / 1024).toFixed(1)} MB`;
+		}
+		return `${kb} KB`;
+	}
 </script>
 
 {#if proc}
@@ -30,8 +41,8 @@
 				shape="sun"
 				size={44}
 				iconSize={22}
-				bgClass={proc.isSystem ? 'bg-amber-500/20' : 'bg-primary/20'}
-				textClass={proc.isSystem ? 'text-amber-400' : 'text-primary'}
+				bgClass={proc.isSystem ? 'bg-purple-500/20' : 'bg-primary/20'}
+				textClass={proc.isSystem ? 'text-purple-400' : 'text-primary'}
 			/>
 			<div class="overflow-hidden">
 				<h3 class="text-sm font-bold text-on-surface truncate">{proc.name}</h3>
@@ -49,7 +60,7 @@
 			<div class="grid grid-cols-2 gap-2">
 				<div class="flex flex-col gap-1 bg-surface-container-high/50 p-3 rounded-2xl">
 					<span class="text-[10px] text-on-surface-variant/80 font-bold uppercase tracking-wider">RAM Memory</span>
-					<span class="font-mono text-on-surface font-semibold">{proc.memMb} MB</span>
+					<span class="font-mono text-on-surface font-semibold">{formatMemory(proc.memMb)}</span>
 				</div>
 				<div class="flex flex-col gap-1 bg-surface-container-high/50 p-3 rounded-2xl">
 					<span class="text-[10px] text-on-surface-variant/80 font-bold uppercase tracking-wider">CPU Threads</span>
@@ -74,9 +85,9 @@
 		<div class="pt-2">
 			<button
 				onclick={onkill}
-				class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-error text-white text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer border-0 outline-none"
+				class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-error/15 text-error hover:bg-error/25 text-xs font-bold transition-all cursor-pointer border-0 outline-none active:scale-95"
 			>
-				<span class="material-symbols-outlined text-[18px]">do_not_disturb_on</span>
+				<span class="material-symbols-outlined text-[18px]">close</span>
 				Kill Process ({proc.pid})
 			</button>
 		</div>

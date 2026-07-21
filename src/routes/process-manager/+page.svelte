@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
 	import ProcessRow from './components/ProcessRow.svelte';
-	import ProcessDetailsPanel from './components/ProcessDetailsPanel.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -189,7 +188,7 @@
 				<div>
 					<div class="flex items-center gap-3">
 						<ShapeBadge icon="memory" shape="arch" size={40} iconSize={20} />
-						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Process Manager Studio</h2>
+						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Process Manager</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK MODE</span>
 						{/if}
@@ -201,7 +200,7 @@
 			<div class="flex items-center gap-3">
 				<button
 					onclick={loadProcesses}
-					class="flex items-center gap-2 rounded-full bg-surface-container hover:bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-all shadow-xs"
+					class="flex items-center gap-2 rounded-full bg-surface-container hover:bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface transition-all shadow-xs border-0 outline-none cursor-pointer"
 					title="Refresh Process List"
 				>
 					<span class="material-symbols-outlined text-[16px] {loading ? 'animate-spin' : ''}">refresh</span>
@@ -215,7 +214,7 @@
 			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[18px]">check_circle</span>
 				<div class="flex-1 font-semibold">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase">Dismiss</button>
+				<button onclick={() => (infoMessage = '')} class="hover:bg-primary/25 text-primary font-bold text-[11px] bg-primary/20 px-3 py-1 rounded-full border-0 outline-none cursor-pointer">Dismiss</button>
 			</div>
 		{/if}
 
@@ -223,7 +222,7 @@
 			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[18px]">error</span>
 				<div class="flex-1 font-semibold">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase">Dismiss</button>
+				<button onclick={() => (error = '')} class="hover:bg-error/25 text-error font-bold text-[11px] bg-error/20 px-3 py-1 rounded-full border-0 outline-none cursor-pointer">Dismiss</button>
 			</div>
 		{/if}
 
@@ -237,7 +236,7 @@
 					Please connect an Android device via USB or Wi-Fi and ensure USB Debugging is enabled.
 				</p>
 				<button
-					class="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold text-on-primary transition-all hover:brightness-110 shadow-sm"
+					class="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-xs font-bold text-on-primary transition-all hover:brightness-110 shadow-sm border-0 outline-none cursor-pointer"
 					onclick={loadDevices}
 				>
 					<span class="material-symbols-outlined text-[18px]">refresh</span> Rescan Devices
@@ -251,7 +250,7 @@
 					{#each ['ALL', 'USER', 'SYSTEM'] as cat (cat)}
 						<button
 							onclick={() => (processCategory = cat as 'ALL' | 'USER' | 'SYSTEM')}
-							class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all {processCategory === cat ? 'bg-secondary-container text-on-secondary-container shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
+							class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border-0 outline-none cursor-pointer {processCategory === cat ? 'bg-secondary-container text-on-secondary-container shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
 						>
 							{cat === 'USER' ? 'User Apps' : cat === 'SYSTEM' ? 'System Daemons' : 'All Processes'}
 						</button>
@@ -270,45 +269,46 @@
 				</div>
 			</section>
 
-			<!-- 2-Column Main Workspace (App Studio Style Layout) -->
-			<div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden min-h-0">
-				
-				<!-- Left Column: Process List (Col 8) -->
-				<div class="lg:col-span-8 flex flex-col overflow-hidden rounded-[32px] bg-surface-container p-5 shadow-sm min-h-0">
-					<div class="flex items-center justify-between pb-3 mb-2 shrink-0 text-xs font-bold text-on-surface px-2">
-						<span>Processes ({filteredProcesses.length})</span>
-						<span class="text-[10px] text-on-surface-variant/70 font-mono">Click item to inspect details</span>
-					</div>
-
-					<div class="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 font-mono text-xs">
-						{#if filteredProcesses.length === 0}
-							<div class="flex flex-col items-center justify-center h-full text-on-surface-variant/70 p-12 text-center">
-								<span class="material-symbols-outlined text-[48px] opacity-40 mb-2">subtitles_off</span>
-								<p class="text-xs font-semibold">No processes match filter ({processCategory})</p>
-							</div>
-						{:else}
-							{#each filteredProcesses as proc (proc.pid)}
-								<ProcessRow
-									{proc}
-									isActive={activePid === proc.pid}
-									onselect={() => (activePid = proc.pid)}
-									onkill={(e) => {
-										e.stopPropagation();
-										killProcess(proc);
-									}}
-								/>
-							{/each}
-						{/if}
-					</div>
+			<!-- Unified Borderless Seamless Process Stream Panel (Logcat Style) -->
+			<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container p-6 shadow-sm min-h-0">
+				<!-- Table Header -->
+				<div class="grid grid-cols-12 gap-3 pb-3 mb-2 shrink-0 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 px-3">
+					<div class="col-span-2 sm:col-span-1">PID</div>
+					<div class="col-span-3 sm:col-span-2">USER</div>
+					<div class="col-span-3 sm:col-span-2">TYPE</div>
+					<div class="col-span-4 sm:col-span-2">MEMORY</div>
+					<div class="col-span-12 sm:col-span-5">PROCESS NAME</div>
 				</div>
 
-				<!-- Right Column: Process Details Inspector Panel -->
-				<ProcessDetailsPanel
-					proc={activeProcess}
-					onkill={() => { if (activeProcess) killProcess(activeProcess); }}
-				/>
-
+				<!-- Scrollable Seamless Process List -->
+				<div class="flex-1 overflow-y-auto pr-1 flex flex-col gap-0.5 font-mono text-xs">
+					{#if filteredProcesses.length === 0}
+						<div class="flex flex-col items-center justify-center h-full text-on-surface-variant/70 p-12 text-center">
+							<span class="material-symbols-outlined text-[48px] opacity-40 mb-2">subtitles_off</span>
+							<p class="text-xs font-semibold">No processes match filter ({processCategory})</p>
+						</div>
+					{:else}
+						{#each filteredProcesses as proc (proc.pid)}
+							<ProcessRow
+								{proc}
+								isSelected={activePid === proc.pid}
+								onselect={() => (activePid = activePid === proc.pid ? null : proc.pid)}
+								oncopy={copyProcDetails}
+								onkill={killProcess}
+							/>
+						{/each}
+					{/if}
+				</div>
 			</div>
+
+			<!-- Footer Info Bar -->
+			<footer class="flex justify-between items-center text-xs text-on-surface-variant font-medium shrink-0 px-2">
+				<span>Showing {filteredProcesses.length} of {processes.length} active processes</span>
+				<span class="flex items-center gap-2 font-mono text-[11px]">
+					<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+					Active Device Monitor
+				</span>
+			</footer>
 		{/if}
 
 	</div>
