@@ -15,11 +15,15 @@
 		icon = '',
 		imgUrl = '',
 		shape = 'cookie7',
-		size = 44,
-		iconSize = 24,
+		size: requestedSize = 44,
+		iconSize: requestedIconSize = 22,
 		variant = 'container',
 		class: className = ''
 	}: Props = $props();
+
+	// Enforce generous minimum badge size (>= 38px) so M3 shapes & icons are large, clear, and never pixelated
+	let size = $derived(Math.max(requestedSize, 38));
+	let iconSize = $derived(Math.max(requestedIconSize, Math.round(size * 0.5)));
 
 	let svgPath = $derived(
 		shape === 'rounded' ? '' : getMaterialShapeSvgPath(shape as MaterialShapeType, size)

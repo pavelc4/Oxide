@@ -1003,8 +1003,8 @@
 				<!-- A/B Slot Manager Panel -->
 				<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-4 shadow-sm">
 					<div class="flex items-center justify-between">
-						<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-							<ShapeBadge icon="swap_horiz" shape="clover" size={30} iconSize={16} />
+						<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-3">
+							<ShapeBadge icon="swap_horiz" shape="clover" size={42} iconSize={22} />
 							Slot Manager (A/B)
 						</h3>
 						<span class="text-[10px] font-bold bg-primary/15 text-primary px-2.5 py-0.5 rounded-full uppercase font-mono">
@@ -1044,8 +1044,8 @@
 
 				<!-- Device State & Quick Reboot Actions -->
 				<section class="rounded-[32px] bg-surface-container p-6 flex flex-col gap-3 shadow-sm">
-					<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2 mb-1">
-						<ShapeBadge icon="power_settings_new" shape="sunny" size={30} iconSize={16} />
+					<h3 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-3 mb-1">
+						<ShapeBadge icon="power_settings_new" shape="sunny" size={42} iconSize={22} />
 						Reboot Controls
 					</h3>
 
@@ -1077,8 +1077,8 @@
 
 				<!-- Safety & Reset Action -->
 				<section class="rounded-[32px] bg-error/10 p-6 flex flex-col gap-3 shadow-sm">
-					<h3 class="text-xs font-bold text-error uppercase tracking-wider flex items-center gap-2">
-						<ShapeBadge icon="warning" shape="burst" size={30} iconSize={16} bgClass="bg-error/20" textClass="text-error" />
+					<h3 class="text-xs font-bold text-error uppercase tracking-wider flex items-center gap-3">
+						<ShapeBadge icon="warning" shape="burst" size={42} iconSize={22} bgClass="bg-error/20" textClass="text-error" />
 						Dangerous Wipe Actions
 					</h3>
 					<p class="text-[11px] text-on-surface-variant leading-relaxed">Perform factory reset by clearing user data & cache partitions.</p>

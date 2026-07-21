@@ -745,25 +745,25 @@ let deviceInfo: {
 				<div class="grid grid-cols-2 gap-2 text-xs">
 					<button
 						onclick={() => rebootDevice('normal')}
-						class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
+						class="flex items-center justify-center gap-2.5 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all border-0 outline-none cursor-pointer"
 					>
-						<ShapeBadge shape="sunny" icon="restart_alt" size={26} iconSize={14} bgClass="bg-emerald-500/20" textClass="text-emerald-400" />
+						<ShapeBadge shape="sunny" icon="restart_alt" size={38} iconSize={20} bgClass="bg-emerald-500/20" textClass="text-emerald-400" />
 						Reboot System
 					</button>
 					<button
 						onclick={() => rebootDevice('bootloader')}
-						class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all"
+						class="flex items-center justify-center gap-2.5 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold transition-all border-0 outline-none cursor-pointer"
 					>
-						<ShapeBadge shape="triangle" icon="memory" size={26} iconSize={14} bgClass="bg-amber-500/20" textClass="text-amber-400" />
+						<ShapeBadge shape="triangle" icon="memory" size={38} iconSize={20} bgClass="bg-amber-500/20" textClass="text-amber-400" />
 						Bootloader Mode
 					</button>
 				</div>
 
 				<button
 					onclick={() => rebootDevice('recovery')}
-					class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs transition-all w-full"
+					class="flex items-center justify-center gap-2.5 p-3 rounded-2xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs transition-all w-full border-0 outline-none cursor-pointer"
 				>
-					<ShapeBadge shape="diamond" icon="build" size={26} iconSize={14} bgClass="bg-sky-500/20" textClass="text-sky-400" />
+					<ShapeBadge shape="diamond" icon="build" size={38} iconSize={20} bgClass="bg-sky-500/20" textClass="text-sky-400" />
 					Reboot Recovery (Sideload)
 				</button>
 			</div>
