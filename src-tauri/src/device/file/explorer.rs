@@ -24,8 +24,65 @@ pub fn pull_file(device: &mut ADBServerDevice, remote: &str, local: &mut dyn std
     device.pull(&remote, local).map_err(|e| format!("pull: {e}"))
 }
 
+pub fn pull_item(device: &mut ADBServerDevice, remote: &str, local: &str) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(local).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let items = list_files(device, remote);
+    if items.is_empty() {
+        let mut file = std::fs::File::create(local).map_err(|e| format!("create {local}: {e}"))?;
+        return pull_file(device, remote, &mut file);
+    }
+
+    std::fs::create_dir_all(local).map_err(|e| format!("mkdir {local}: {e}"))?;
+    for item in items {
+        let child_remote = format!("{}/{}", remote.trim_end_matches('/'), item.name);
+        let child_local = std::path::Path::new(local).join(&item.name);
+        let child_local_str = child_local.to_string_lossy();
+        if item.is_dir {
+            pull_item(device, &child_remote, &child_local_str)?;
+        } else {
+            if let Some(p) = child_local.parent() {
+                let _ = std::fs::create_dir_all(p);
+            }
+            let mut file = std::fs::File::create(&*child_local_str).map_err(|e| format!("create {child_local_str}: {e}"))?;
+            let _ = pull_file(device, &child_remote, &mut file);
+        }
+    }
+    Ok(())
+}
+
 pub fn push_file(device: &mut ADBServerDevice, data: &mut dyn Read, remote: &str) -> Result<(), String> {
     device.push(data, remote).map_err(|e| format!("push: {e}"))
+}
+
+pub fn push_item(device: &mut ADBServerDevice, local: &str, remote: &str) -> Result<(), String> {
+    let path = std::path::Path::new(local);
+    if !path.exists() {
+        return Err(format!("local path '{local}' does not exist"));
+    }
+
+    if path.is_dir() {
+        let _ = create_dir(device, remote);
+        let entries = std::fs::read_dir(path).map_err(|e| format!("read_dir {local}: {e}"))?;
+        for entry in entries.flatten() {
+            let child_local = entry.path();
+            let file_name = child_local.file_name().unwrap_or_default().to_string_lossy();
+            let child_remote = format!("{}/{}", remote.trim_end_matches('/'), file_name);
+
+            if child_local.is_dir() {
+                push_item(device, &child_local.to_string_lossy(), &child_remote)?;
+            } else {
+                let mut file = std::fs::File::open(&child_local).map_err(|e| format!("open {}: {e}", child_local.display()))?;
+                let _ = push_file(device, &mut file, &child_remote);
+            }
+        }
+        Ok(())
+    } else {
+        let mut file = std::fs::File::open(path).map_err(|e| format!("open {local}: {e}"))?;
+        push_file(device, &mut file, remote)
+    }
 }
 
 pub fn delete_file(device: &mut ADBServerDevice, path: &str) -> Result<(), String> {

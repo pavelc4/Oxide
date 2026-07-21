@@ -102,15 +102,13 @@ fn list_files(
 #[tauri::command]
 fn pull_file(serial: String, remote: String, local: String) -> Result<(), String> {
     let mut d = device::state::connect_serial(&serial);
-    let mut file = std::fs::File::create(&local).map_err(|e| format!("create {local}: {e}"))?;
-    device::file::explorer::pull_file(&mut d, &remote, &mut file)
+    device::file::explorer::pull_item(&mut d, &remote, &local)
 }
 
 #[tauri::command]
 fn push_file(serial: String, local: String, remote: String) -> Result<(), String> {
     let mut d = device::state::connect_serial(&serial);
-    let mut file = std::fs::File::open(&local).map_err(|e| format!("open {local}: {e}"))?;
-    device::file::explorer::push_file(&mut d, &mut file, &remote)
+    device::file::explorer::push_item(&mut d, &local, &remote)
 }
 
 #[tauri::command]
@@ -129,6 +127,15 @@ fn create_dir(serial: String, path: String) -> Result<(), String> {
 fn rename_file(serial: String, src: String, dst: String) -> Result<(), String> {
     let mut d = device::state::connect_serial(&serial);
     device::file::explorer::rename(&mut d, &src, &dst)
+}
+
+#[tauri::command]
+fn get_default_download_dir() -> Result<String, String> {
+    let base = dirs::download_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join("Oxide");
+    let _ = std::fs::create_dir_all(&base);
+    Ok(base.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -231,6 +238,7 @@ pub fn run() {
             delete_file,
             create_dir,
             rename_file,
+            get_default_download_dir,
             get_config,
             save_config,
             get_perf,

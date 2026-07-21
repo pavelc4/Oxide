@@ -2,7 +2,18 @@
 	/* eslint-disable svelte/no-navigation-without-resolve */
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { SvelteSet } from 'svelte/reactivity';
 	import ShapeBadge from '$lib/components/ShapeBadge.svelte';
+
+	// Sub-components
+	import FileSidebar from './components/FileSidebar.svelte';
+	import FileBreadcrumb from './components/FileBreadcrumb.svelte';
+	import FileToolbar, { type CategoryFilter } from './components/FileToolbar.svelte';
+	import FileListItem from './components/FileListItem.svelte';
+	import FileGridItem from './components/FileGridItem.svelte';
+	import FileDetailsPanel from './components/FileDetailsPanel.svelte';
+	import FileContextMenu from './components/FileContextMenu.svelte';
+	import FileModals from './components/FileModals.svelte';
 
 	let invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | undefined;
 	let isTauri = $state(false);
@@ -22,7 +33,7 @@
 		modified: number;
 	}
 
-	// Devices State
+	// Devices & Global State
 	let devices = $state<Device[]>([]);
 	let selectedDevice = $state<string>('');
 	let loading = $state(true);
@@ -37,9 +48,32 @@
 	let viewMode = $state<'list' | 'grid'>('list');
 	let selectedFile = $state<FileEntry | null>(null);
 
+	// Category Filter
+	let selectedCategory = $state<CategoryFilter>('all');
+
+	// Multi-select state (keyboard/click selection)
+	let selectedFileNames = new SvelteSet<string>();
+
 	// Sorting
 	let sortBy = $state<'name' | 'size' | 'modified'>('name');
 	let sortAsc = $state(true);
+
+	// Drag & Drop Upload State
+	let isDraggingOverWorkspace = $state(false);
+	let dragTargetFolder = $state<string | null>(null);
+
+	// Context Menu State
+	let contextMenu = $state<{
+		show: boolean;
+		x: number;
+		y: number;
+		file: FileEntry | null;
+	}>({
+		show: false,
+		x: 0,
+		y: 0,
+		file: null
+	});
 
 	// Action Modals State
 	let showNewFolderModal = $state(false);
@@ -51,18 +85,28 @@
 	let showPullModal = $state(false);
 	let localPullPath = $state('');
 
-	// Bookmarked Quick Locations
-	const quickLocations: Array<{ label: string; path: string; icon: string; shape: import('$lib/shapes/materialShapes').MaterialShapeType | 'rounded' }> = [
-		{ label: 'Internal Storage', path: '/sdcard', icon: 'smartphone', shape: 'cookie7' },
-		{ label: 'Downloads', path: '/sdcard/Download', icon: 'download', shape: 'clover' },
-		{ label: 'DCIM (Photos)', path: '/sdcard/DCIM', icon: 'photo_camera', shape: 'sunny' },
-		{ label: 'Pictures', path: '/sdcard/Pictures', icon: 'image', shape: 'gem' },
-		{ label: 'Music', path: '/sdcard/Music', icon: 'library_music', shape: 'ghostish' },
-		{ label: 'Movies', path: '/sdcard/Movies', icon: 'movie', shape: 'arch' },
-		{ label: 'Documents', path: '/sdcard/Documents', icon: 'description', shape: 'bun' },
-		{ label: 'System Root', path: '/system', icon: 'settings', shape: 'triangle' },
-		{ label: 'Data Partition', path: '/data', icon: 'database', shape: 'pixelCircle' }
-	];
+	// Custom Confirmation Modal state
+	let confirmModalState = $state<{
+		show: boolean;
+		title: string;
+		message: string;
+		confirmText: string;
+		icon: string;
+		isDanger: boolean;
+		action: () => void;
+	}>({
+		show: false,
+		title: '',
+		message: '',
+		confirmText: 'Confirm',
+		icon: 'warning',
+		isDanger: true,
+		action: () => {}
+	});
+
+	let baseDownloadDir = $state('~/Downloads/Oxide');
+
+	let unlistenDrop: (() => void) | undefined;
 
 	onMount(async () => {
 		try {
@@ -70,6 +114,28 @@
 				const tauriApi = await import('@tauri-apps/api/core');
 				invoke = tauriApi.invoke;
 				isTauri = true;
+
+				try {
+					const webviewModule = await import('@tauri-apps/api/webviewWindow');
+					const appWindow = webviewModule.getCurrentWebviewWindow();
+					unlistenDrop = await appWindow.onDragDropEvent((event) => {
+						if (event.payload.type === 'over' || event.payload.type === 'enter') {
+							isDraggingOverWorkspace = true;
+						} else if (event.payload.type === 'drop') {
+							isDraggingOverWorkspace = false;
+							const paths = event.payload.paths;
+							if (paths && paths.length > 0) {
+								processDroppedPaths(paths, dragTargetFolder);
+							}
+							dragTargetFolder = null;
+						} else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
+							isDraggingOverWorkspace = false;
+							dragTargetFolder = null;
+						}
+					});
+				} catch (err) {
+					console.warn('Tauri onDragDropEvent listener skipped:', err);
+				}
 			} else {
 				isTauri = false;
 			}
@@ -77,7 +143,25 @@
 			isTauri = false;
 		}
 
+		if (isTauri && invoke) {
+			try {
+				baseDownloadDir = await safeInvoke<string>('get_default_download_dir');
+			} catch {
+				baseDownloadDir = '~/Downloads/Oxide';
+			}
+		}
+
+		const closeContextMenu = () => {
+			if (contextMenu.show) contextMenu.show = false;
+		};
+		window.addEventListener('click', closeContextMenu);
+
 		await loadDevices();
+
+		return () => {
+			window.removeEventListener('click', closeContextMenu);
+			if (unlistenDrop) unlistenDrop();
+		};
 	});
 
 	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -130,6 +214,7 @@
 		loadingFiles = true;
 		error = '';
 		selectedFile = null;
+		selectedFileNames.clear();
 
 		// Clean path slashes
 		const targetPath = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
@@ -173,12 +258,38 @@
 		];
 	}
 
-	function handleItemClick(file: FileEntry) {
+	function handleItemClick(file: FileEntry, e?: MouseEvent) {
+		if (e?.ctrlKey || e?.metaKey) {
+			toggleSelectFile(file.name);
+			return;
+		}
+		selectedFile = file;
+	}
+
+	function handleItemDblClick(file: FileEntry) {
 		if (file.is_dir) {
 			const newPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
 			navigateTo(newPath);
+		}
+	}
+
+	function handleContextMenu(e: MouseEvent, file: FileEntry) {
+		e.preventDefault();
+		e.stopPropagation();
+		selectedFile = file;
+		contextMenu = {
+			show: true,
+			x: Math.min(e.clientX, window.innerWidth - 220),
+			y: Math.min(e.clientY, window.innerHeight - 240),
+			file
+		};
+	}
+
+	function toggleSelectFile(name: string) {
+		if (selectedFileNames.has(name)) {
+			selectedFileNames.delete(name);
 		} else {
-			selectedFile = file;
+			selectedFileNames.add(name);
 		}
 	}
 
@@ -188,6 +299,96 @@
 		parts.pop();
 		const parentPath = '/' + parts.join('/');
 		navigateTo(parentPath);
+	}
+
+	async function copyPathToClipboard(file: FileEntry) {
+		const fullPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
+		try {
+			await navigator.clipboard.writeText(fullPath);
+			infoMessage = `Copied "${fullPath}" to clipboard!`;
+		} catch {
+			error = 'Failed to copy path to clipboard.';
+		}
+	}
+
+	// Drag & Drop Upload Handlers
+	function handleDragOver(e: DragEvent, folderName?: string) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDraggingOverWorkspace = true;
+		dragTargetFolder = folderName || null;
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDraggingOverWorkspace = false;
+		dragTargetFolder = null;
+	}
+
+	async function processDroppedPaths(paths: string[], folderName?: string | null) {
+		if (!selectedDevice || paths.length === 0) return;
+
+		const destDir = folderName
+			? (currentPath === '/' ? `/${folderName}` : `${currentPath}/${folderName}`)
+			: currentPath;
+
+		loadingFiles = true;
+		error = '';
+		infoMessage = '';
+
+		let successCount = 0;
+		let failCount = 0;
+
+		for (const localPath of paths) {
+			const name = localPath.split('/').pop()?.split('\\').pop() || 'item';
+			const remoteDest = destDir === '/' ? `/${name}` : `${destDir}/${name}`;
+
+			try {
+				if (isTauri && invoke) {
+					await safeInvoke('push_file', {
+						serial: selectedDevice,
+						local: localPath,
+						remote: remoteDest
+					});
+					successCount++;
+				} else {
+					successCount++;
+				}
+			} catch (e) {
+				failCount++;
+				console.error('Push failed for path:', localPath, e);
+			}
+		}
+
+		infoMessage = `Uploaded ${successCount} item(s) to ${destDir}${failCount > 0 ? ` (${failCount} failed)` : ''}`;
+		await navigateTo(currentPath);
+	}
+
+	async function handleDrop(e: DragEvent, folderName?: string) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDraggingOverWorkspace = false;
+
+		const dtFiles = e.dataTransfer?.files;
+		if (!dtFiles || dtFiles.length === 0) return;
+
+		const paths: string[] = [];
+		for (let i = 0; i < dtFiles.length; i++) {
+			const file = dtFiles[i];
+			const p = (file as any).path;
+			if (p) {
+				paths.push(p);
+			}
+		}
+
+		if (paths.length > 0) {
+			await processDroppedPaths(paths, folderName || dragTargetFolder);
+		} else {
+			// Mock mode or browser fallback
+			infoMessage = `Dropped ${dtFiles.length} file(s) into ${folderName || currentPath} (Mock Mode)`;
+		}
+		dragTargetFolder = null;
 	}
 
 	async function handleCreateFolder() {
@@ -228,9 +429,71 @@
 		}
 	}
 
-	async function handleDelete(file: FileEntry) {
+	function openRenameModal(file?: FileEntry) {
+		const target = file || selectedFile;
+		if (!target) return;
+		selectedFile = target;
+		renameNewName = target.name;
+		showRenameModal = true;
+	}
+
+	function getCategorySubfolder(filename: string, is_dir: boolean): string {
+		if (is_dir) return '';
+		const ext = filename.split('.').pop()?.toLowerCase() || '';
+		if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg', 'heic', 'raw'].includes(ext)) return 'Photos';
+		if (['mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', '3gp', 'm4v'].includes(ext)) return 'Videos';
+		if (['mp3', 'flac', 'wav', 'aac', 'm4a', 'ogg', 'opus', 'wma'].includes(ext)) return 'Music';
+		if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'zip', 'rar', '7z', 'gz', 'tar', 'apk', 'json', 'xml', 'md'].includes(ext)) return 'Documents';
+		return 'Others';
+	}
+
+	function openPullModal(file?: FileEntry) {
+		const target = file || selectedFile;
+		if (!target) return;
+		selectedFile = target;
+
+		const base = baseDownloadDir || '~/Downloads/Oxide';
+		if (target.is_dir) {
+			localPullPath = `${base}/${target.name}`;
+		} else {
+			const subfolder = getCategorySubfolder(target.name, false);
+			localPullPath = subfolder ? `${base}/${subfolder}/${target.name}` : `${base}/${target.name}`;
+		}
+		showPullModal = true;
+	}
+
+	function requestDelete(file?: FileEntry) {
+		const target = file || selectedFile;
+		if (!target) return;
+		selectedFile = target;
+		confirmModalState = {
+			show: true,
+			title: `Delete ${target.is_dir ? 'Folder' : 'File'}`,
+			message: `Are you sure you want to delete "${target.name}"? ${target.is_dir ? 'All files inside this folder will be permanently wiped.' : 'This action cannot be undone.'}`,
+			confirmText: `Delete ${target.is_dir ? 'Folder' : 'File'}`,
+			icon: 'delete_forever',
+			isDanger: true,
+			action: () => executeDelete(target)
+		};
+	}
+
+	function requestBatchDelete() {
+		const count = selectedFileNames.size;
+		if (count === 0) return;
+
+		confirmModalState = {
+			show: true,
+			title: `Delete ${count} Items`,
+			message: `Are you sure you want to delete ${count} selected items permanently from ${currentPath}?`,
+			confirmText: `Delete ${count} Items`,
+			icon: 'delete_sweep',
+			isDanger: true,
+			action: () => executeBatchDelete()
+		};
+	}
+
+	async function executeDelete(file: FileEntry) {
 		if (!selectedDevice) return;
-		if (!confirm(`Are you sure you want to delete ${file.is_dir ? 'folder' : 'file'} "${file.name}"?`)) return;
 		error = '';
 		infoMessage = '';
 		const pathToDelete = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
@@ -244,6 +507,29 @@
 		} catch (e) {
 			error = `Failed to delete: ${e}`;
 		}
+	}
+
+	async function executeBatchDelete() {
+		if (!selectedDevice) return;
+		loadingFiles = true;
+		error = '';
+		infoMessage = '';
+		let failCount = 0;
+
+		for (const name of selectedFileNames) {
+			const pathToDelete = currentPath === '/' ? `/${name}` : `${currentPath}/${name}`;
+			try {
+				if (isTauri && invoke) {
+					await safeInvoke('delete_file', { serial: selectedDevice, path: pathToDelete });
+				}
+			} catch {
+				failCount++;
+			}
+		}
+
+		infoMessage = `Batch delete completed${failCount > 0 ? ` with ${failCount} errors` : ' successfully'}.`;
+		selectedFileNames.clear();
+		await navigateTo(currentPath);
 	}
 
 	async function handlePushFile() {
@@ -274,7 +560,7 @@
 			if (isTauri && invoke) {
 				await safeInvoke('pull_file', { serial: selectedDevice, remote: remotePath, local: localPullPath.trim() });
 			}
-			infoMessage = `Downloaded ${selectedFile.name} to ${localPullPath}`;
+			infoMessage = `Downloaded ${selectedFile.name} (${selectedFile.is_dir ? 'folder' : 'file'}) to ${localPullPath.trim()}`;
 			showPullModal = false;
 			localPullPath = '';
 		} catch (e) {
@@ -301,20 +587,35 @@
 		const ext = name.split('.').pop()?.toLowerCase();
 		switch (ext) {
 			case 'apk': return 'android';
-			case 'zip': case 'tar': case 'gz': case '7z': return 'archive';
+			case 'zip': case 'tar': case 'gz': case '7z': case 'rar': return 'archive';
 			case 'img': case 'iso': case 'bin': return 'disc_full';
-			case 'jpg': case 'jpeg': case 'png': case 'webp': case 'gif': return 'image';
+			case 'jpg': case 'jpeg': case 'png': case 'webp': case 'gif': case 'svg': return 'image';
 			case 'mp4': case 'mkv': case 'avi': case 'webm': return 'movie';
 			case 'mp3': case 'flac': case 'wav': case 'ogg': return 'audio_file';
-			case 'txt': case 'log': case 'prop': case 'json': case 'xml': return 'description';
+			case 'txt': case 'log': case 'prop': case 'json': case 'xml': case 'pdf': return 'description';
 			case 'sh': case 'py': case 'js': case 'ts': return 'code';
 			default: return 'insert_drive_file';
 		}
 	}
 
-	// Filtered & sorted files list
+	// Filtered & sorted files list with category filter
 	let filteredFiles = $derived.by(() => {
-		let list = files.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
+		let list = files.filter((f) => {
+			const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+			if (!matchesSearch) return false;
+
+			if (selectedCategory === 'folders') return f.is_dir;
+			if (selectedCategory === 'all') return true;
+
+			const ext = f.name.split('.').pop()?.toLowerCase() || '';
+			if (selectedCategory === 'media') return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mkv', 'avi', 'webm'].includes(ext);
+			if (selectedCategory === 'documents') return ['pdf', 'doc', 'docx', 'txt', 'log', 'prop', 'json', 'xml'].includes(ext);
+			if (selectedCategory === 'archives') return ['zip', 'tar', 'gz', '7z', 'rar', 'iso', 'img'].includes(ext);
+			if (selectedCategory === 'apks') return ext === 'apk';
+
+			return true;
+		});
+
 		list.sort((a, b) => {
 			if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1; // Folders first
 			let mult = sortAsc ? 1 : -1;
@@ -326,26 +627,21 @@
 		return list;
 	});
 
-	// Split current path into breadcrumbs
-	let breadcrumbs = $derived.by(() => {
-		const parts = currentPath.split('/').filter(Boolean);
-		let accum = '';
-		return parts.map((part) => {
-			accum += '/' + part;
-			return { name: part, path: accum };
-		});
+	// Total directory size sum
+	let totalDirSize = $derived.by(() => {
+		return files.reduce((acc, curr) => acc + (curr.is_dir ? 0 : curr.size), 0);
 	});
 </script>
 
-<main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-6 w-full shadow-sm">
+<main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden select-none">
+	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-5 w-full shadow-sm">
 
 		<!-- Top Header & Device Selector -->
-		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2 w-full">
+		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-1 w-full">
 			<div class="flex items-center gap-4">
 				<button
 					onclick={() => goto('/')}
-					class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shrink-0"
+					class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shrink-0 border-0 outline-none cursor-pointer"
 					title="Back to dashboard"
 				>
 					<span class="material-symbols-outlined text-[20px]">arrow_back</span>
@@ -353,12 +649,12 @@
 				<div>
 					<div class="flex items-center gap-3">
 						<ShapeBadge icon="folder_open" shape="clover" size={40} iconSize={20} />
-						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Device File Explorer</h2>
+						<h2 class="text-2xl font-bold tracking-tight text-on-surface">Device File Manager</h2>
 						{#if !isTauri}
 							<span class="text-[10px] bg-warning/15 text-warning px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">MOCK PREVIEW</span>
 						{/if}
 					</div>
-					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Explore, transfer, and manage files on connected Android device</p>
+					<p class="text-xs text-on-surface-variant/80 font-medium mt-0.5">Drag & drop files to upload, manage remote storage, & batch transfer</p>
 				</div>
 			</div>
 		</header>
@@ -368,7 +664,7 @@
 			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">error</span>
 				<div class="flex-1 break-words font-semibold">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (error = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg border-0 outline-none cursor-pointer">Dismiss</button>
 			</div>
 		{/if}
 
@@ -376,134 +672,70 @@
 			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">check_circle</span>
 				<div class="flex-1 break-words font-semibold">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (infoMessage = '')} class="hover:opacity-80 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg border-0 outline-none cursor-pointer">Dismiss</button>
 			</div>
 		{/if}
 
 		<!-- Main File Explorer Workspace Flex Layout -->
-		<div class="flex-1 flex gap-6 overflow-hidden min-h-0 w-full">
+		<div class="flex-1 flex gap-5 overflow-hidden min-h-0 w-full">
 
-			<!-- Left Quick Links Sidebar (Fixed Width w-60, Seamless Borderless Card) -->
-			<div class="w-60 shrink-0 flex flex-col gap-4 overflow-y-auto hidden md:flex">
-				<div class="rounded-[24px] bg-surface-container p-4 flex flex-col gap-2 shadow-xs">
-					<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80 px-2 mb-1">Storage Shortcuts</span>
-					
-					<div class="flex flex-col gap-1">
-						{#each quickLocations as loc}
-							{@const isActive = currentPath === loc.path}
-							<button
-								onclick={() => navigateTo(loc.path)}
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left {isActive ? 'bg-primary text-on-primary font-bold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}"
-							>
-								<span class="material-symbols-outlined text-[18px]">{loc.icon}</span>
-								<span class="truncate">{loc.label}</span>
-							</button>
-						{/each}
-					</div>
-				</div>
-			</div>
+			<!-- Left Quick Links Sidebar -->
+			<FileSidebar
+				{currentPath}
+				filesCount={files.length}
+				{totalDirSize}
+				onnavigate={navigateTo}
+				{formatBytes}
+			/>
 
-			<!-- Middle Main File Browser Area (Takes 100% Remaining Width) -->
+			<!-- Middle Main File Browser Area -->
 			<div class="flex-1 min-w-0 flex flex-col gap-4 overflow-hidden min-h-0">
 				
 				<!-- Action Toolbar & Breadcrumb Navigation Bar -->
 				<div class="flex flex-col gap-3 shrink-0 w-full">
-					
-					<!-- Navigation Bar (Seamless Pill) -->
-					<div class="flex items-center gap-2 bg-surface-container p-2.5 rounded-2xl shadow-xs w-full">
-						<button
-							onclick={navigateUp}
-							disabled={currentPath === '/'}
-							class="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest disabled:opacity-30 transition-all shrink-0"
-							title="Go Up One Directory"
-						>
-							<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
-						</button>
+					<FileBreadcrumb
+						{currentPath}
+						{loadingFiles}
+						onnavigate={navigateTo}
+						onnavigateup={navigateUp}
+					/>
 
-						<!-- Breadcrumb Trail -->
-						<div class="flex-1 flex items-center gap-1 overflow-x-auto text-xs font-mono px-2 min-w-0">
-							<button
-								onclick={() => navigateTo('/')}
-								class="hover:text-primary font-bold transition-colors shrink-0"
-							>
-								/
-							</button>
-							{#each breadcrumbs as crumb, idx}
-								<span class="text-on-surface-variant/40 shrink-0">/</span>
-								<button
-									onclick={() => navigateTo(crumb.path)}
-									class="hover:text-primary transition-colors whitespace-nowrap shrink-0 {idx === breadcrumbs.length - 1 ? 'text-primary font-bold' : 'text-on-surface-variant'}"
-								>
-									{crumb.name}
-								</button>
-							{/each}
-						</div>
-
-						<button
-							onclick={() => navigateTo(currentPath)}
-							class="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-all shrink-0"
-							title="Refresh Current Folder"
-						>
-							<span class="material-symbols-outlined text-[18px] {loadingFiles ? 'animate-spin' : ''}">refresh</span>
-						</button>
-					</div>
-
-					<!-- Toolbar Actions & Search Bar -->
-					<div class="flex flex-wrap items-center justify-between gap-3 w-full">
-						<div class="flex items-center gap-2">
-							<button
-								onclick={() => (showNewFolderModal = true)}
-								class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm shrink-0"
-							>
-								<span class="material-symbols-outlined text-[16px]">create_new_folder</span>
-								New Folder
-							</button>
-
-							<button
-								onclick={() => (showPushModal = true)}
-								class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest text-xs font-bold transition-all shrink-0"
-							>
-								<span class="material-symbols-outlined text-[16px]">upload</span>
-								Upload File
-							</button>
-						</div>
-
-						<!-- Filter & View Controls -->
-						<div class="flex items-center gap-2">
-							<div class="relative">
-								<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
-								<input
-									type="text"
-									bind:value={searchQuery}
-									placeholder="Search files..."
-									class="bg-surface-container-high rounded-xl pl-9 pr-3 py-2 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 w-44"
-								/>
-							</div>
-
-							<!-- Grid/List toggle -->
-							<div class="flex bg-surface-container p-1 rounded-xl shrink-0">
-								<button
-									onclick={() => (viewMode = 'list')}
-									class="p-1.5 rounded-lg text-xs transition-all {viewMode === 'list' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
-									title="List View"
-								>
-									<span class="material-symbols-outlined text-[16px]">view_list</span>
-								</button>
-								<button
-									onclick={() => (viewMode = 'grid')}
-									class="p-1.5 rounded-lg text-xs transition-all {viewMode === 'grid' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}"
-									title="Grid View"
-								>
-									<span class="material-symbols-outlined text-[16px]">grid_view</span>
-								</button>
-							</div>
-						</div>
-					</div>
-
+					<FileToolbar
+						{selectedFile}
+						selectedCount={selectedFileNames.size}
+						{searchQuery}
+						{viewMode}
+						{selectedCategory}
+						onnewfolder={() => (showNewFolderModal = true)}
+						onupload={() => (showPushModal = true)}
+						onpull={() => selectedFile && openPullModal(selectedFile)}
+						oncopypath={() => selectedFile && copyPathToClipboard(selectedFile)}
+						onrename={() => selectedFile && openRenameModal(selectedFile)}
+						ondelete={() => selectedFile && requestDelete(selectedFile)}
+						onbatchdelete={requestBatchDelete}
+						onclearselection={() => selectedFileNames.clear()}
+						onsearchchange={(q) => (searchQuery = q)}
+						onviewmodechange={(m) => (viewMode = m)}
+						oncategorychange={(c) => (selectedCategory = c)}
+					/>
 				</div>
 
-				<!-- Files Display Container (Seamless Borderless Card) -->
-				<div class="flex-1 bg-surface-container rounded-[24px] p-5 overflow-y-auto min-h-0 w-full shadow-sm">
+				<!-- Files Display Container (Drag & Drop Zone + Clean Borderless Rows) -->
+				<div
+					ondragover={(e) => handleDragOver(e)}
+					ondragleave={(e) => handleDragLeave(e)}
+					ondrop={(e) => handleDrop(e)}
+					class="flex-1 bg-surface-container rounded-[28px] p-5 overflow-y-auto min-h-0 w-full shadow-sm relative transition-all duration-200 {isDraggingOverWorkspace && !dragTargetFolder ? 'ring-4 ring-primary/60 bg-primary/10' : ''}"
+				>
+					<!-- Drag & Drop Overlay Indicator -->
+					{#if isDraggingOverWorkspace}
+						<div class="absolute inset-0 z-30 bg-black/60 backdrop-blur-md rounded-[28px] flex flex-col items-center justify-center p-6 text-white border-2 border-dashed border-primary animate-fade-in pointer-events-none">
+							<ShapeBadge icon="cloud_upload" shape="sunny" size={64} iconSize={32} bgClass="bg-primary/30" textClass="text-primary" />
+							<h3 class="text-lg font-bold mt-4">Drop Files to Upload</h3>
+							<p class="text-xs text-white/80 mt-1">Uploading to: <code class="font-mono text-primary font-bold">{dragTargetFolder ? `${currentPath}/${dragTargetFolder}` : currentPath}</code></p>
+						</div>
+					{/if}
+
 					{#if loadingFiles}
 						<div class="flex flex-col items-center justify-center h-48 gap-3 text-on-surface-variant">
 							<span class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></span>
@@ -513,42 +745,35 @@
 						<div class="flex flex-col items-center justify-center h-48 gap-2 text-on-surface-variant/70 text-center">
 							<span class="material-symbols-outlined text-[36px]">folder_open</span>
 							<span class="text-xs font-bold">This directory is empty</span>
+							<p class="text-[11px] text-on-surface-variant/60">Drag and drop files here to upload instantly</p>
 						</div>
 					{:else if viewMode === 'list'}
-						<!-- Borderless List View -->
+						<!-- Borderless Clean List View (No Ugly Checkboxes) -->
 						<table class="w-full text-left border-collapse text-xs">
 							<thead>
 								<tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider pb-3">
-									<th class="pb-3 px-3 font-bold cursor-pointer" onclick={() => { sortBy = 'name'; sortAsc = !sortAsc; }}>Name</th>
-									<th class="pb-3 px-3 font-bold cursor-pointer text-right w-28" onclick={() => { sortBy = 'size'; sortAsc = !sortAsc; }}>Size</th>
-									<th class="pb-3 px-3 font-bold cursor-pointer text-center w-28 hidden lg:table-cell">Permissions</th>
-									<th class="pb-3 px-3 font-bold cursor-pointer text-right w-40 hidden sm:table-cell" onclick={() => { sortBy = 'modified'; sortAsc = !sortAsc; }}>Modified</th>
+									<th class="pb-3 px-4 font-bold cursor-pointer" onclick={() => { sortBy = 'name'; sortAsc = !sortAsc; }}>Name</th>
+									<th class="pb-3 px-4 font-bold cursor-pointer text-right w-28" onclick={() => { sortBy = 'size'; sortAsc = !sortAsc; }}>Size</th>
+									<th class="pb-3 px-4 font-bold cursor-pointer text-center w-28 hidden lg:table-cell">Permissions</th>
+									<th class="pb-3 px-4 font-bold cursor-pointer text-right w-40 hidden sm:table-cell" onclick={() => { sortBy = 'modified'; sortAsc = !sortAsc; }}>Modified</th>
 								</tr>
 							</thead>
 							<tbody class="space-y-1">
 								{#each filteredFiles as file (file.name)}
-									<tr
-										onclick={() => handleItemClick(file)}
-										class="hover:bg-surface-container-high/70 transition-all cursor-pointer group rounded-xl {selectedFile?.name === file.name ? 'bg-primary/15 font-bold' : ''}"
-									>
-										<td class="py-2.5 px-3 rounded-l-xl">
-											<div class="flex items-center gap-3">
-												<span class="material-symbols-outlined text-[22px] shrink-0 {file.is_dir ? 'text-primary font-fill' : 'text-primary/80'}">
-													{getFileIcon(file.name, file.is_dir)}
-												</span>
-												<span class="font-semibold text-on-surface group-hover:text-primary transition-colors truncate">{file.name}</span>
-											</div>
-										</td>
-										<td class="py-2.5 px-3 text-on-surface-variant text-right font-mono text-[11px]">
-											{file.is_dir ? '—' : formatBytes(file.size)}
-										</td>
-										<td class="py-2.5 px-3 text-on-surface-variant/70 text-center font-mono text-[10px] hidden lg:table-cell">
-											{file.permissions}
-										</td>
-										<td class="py-2.5 px-3 text-on-surface-variant text-right font-mono text-[11px] rounded-r-xl hidden sm:table-cell">
-											{formatTimestamp(file.modified)}
-										</td>
-									</tr>
+									<FileListItem
+										{file}
+										isSelected={selectedFile?.name === file.name || selectedFileNames.has(file.name)}
+										isDragTarget={dragTargetFolder === file.name}
+										{getFileIcon}
+										{formatBytes}
+										{formatTimestamp}
+										onclick={(e) => handleItemClick(file, e)}
+										ondblclick={() => handleItemDblClick(file)}
+										oncontextmenu={(e) => handleContextMenu(e, file)}
+										ondragover={(e) => handleDragOver(e, file.name)}
+										ondragleave={(e) => handleDragLeave(e)}
+										ondrop={(e) => handleDrop(e, file.name)}
+									/>
 								{/each}
 							</tbody>
 						</table>
@@ -556,173 +781,79 @@
 						<!-- Grid View -->
 						<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
 							{#each filteredFiles as file (file.name)}
-								<button
-									onclick={() => handleItemClick(file)}
-									class="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group text-center {selectedFile?.name === file.name ? 'bg-primary-container/30' : 'bg-surface-container-high/40 hover:bg-surface-container-highest'}"
-								>
-									<span class="material-symbols-outlined text-[36px] {file.is_dir ? 'text-primary' : 'text-primary/80'}">
-										{getFileIcon(file.name, file.is_dir)}
-									</span>
-									<span class="text-xs font-semibold text-on-surface truncate w-full group-hover:text-primary transition-colors">{file.name}</span>
-									<span class="text-[10px] font-mono text-on-surface-variant/70">{file.is_dir ? 'Folder' : formatBytes(file.size)}</span>
-								</button>
+								<FileGridItem
+									{file}
+									isSelected={selectedFile?.name === file.name || selectedFileNames.has(file.name)}
+									isDragTarget={dragTargetFolder === file.name}
+									{getFileIcon}
+									{formatBytes}
+									onclick={(e) => handleItemClick(file, e)}
+									ondblclick={() => handleItemDblClick(file)}
+									oncontextmenu={(e) => handleContextMenu(e, file)}
+									ondragover={(e) => handleDragOver(e, file.name)}
+									ondragleave={(e) => handleDragLeave(e)}
+									ondrop={(e) => handleDrop(e, file.name)}
+								/>
 							{/each}
 						</div>
 					{/if}
 				</div>
 			</div>
 
-			<!-- Right File Details Panel (Seamless Borderless Card) -->
-			{#if selectedFile}
-				<div class="w-72 shrink-0 rounded-[24px] bg-surface-container p-5 flex flex-col justify-between gap-4 animate-fade-in shadow-sm">
-					<div class="flex flex-col gap-4">
-						<div class="flex items-center justify-between">
-							<h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">File Properties</h3>
-							<button onclick={() => (selectedFile = null)} class="text-on-surface-variant hover:text-on-surface">
-								<span class="material-symbols-outlined text-[18px]">close</span>
-							</button>
-						</div>
-
-						<div class="flex flex-col items-center p-4 rounded-2xl bg-surface-container-high/50 gap-2">
-							<span class="material-symbols-outlined text-[48px] text-primary">
-								{getFileIcon(selectedFile.name, selectedFile.is_dir)}
-							</span>
-							<span class="text-xs font-bold text-on-surface text-center break-all">{selectedFile.name}</span>
-						</div>
-
-						<div class="flex flex-col gap-2 text-xs">
-							<div class="flex justify-between py-1.5">
-								<span class="text-on-surface-variant">Type</span>
-								<span class="font-bold text-on-surface">{selectedFile.is_dir ? 'Directory' : 'File'}</span>
-							</div>
-							<div class="flex justify-between py-1.5">
-								<span class="text-on-surface-variant">Size</span>
-								<span class="font-mono text-on-surface">{formatBytes(selectedFile.size)}</span>
-							</div>
-							<div class="flex justify-between py-1.5">
-								<span class="text-on-surface-variant">Permissions</span>
-								<span class="font-mono text-on-surface">{selectedFile.permissions}</span>
-							</div>
-							<div class="flex justify-between py-1.5">
-								<span class="text-on-surface-variant">Modified</span>
-								<span class="font-mono text-on-surface text-[10px]">{formatTimestamp(selectedFile.modified)}</span>
-							</div>
-						</div>
-					</div>
-
-					<div class="flex flex-col gap-2">
-						{#if !selectedFile.is_dir}
-							<button
-								onclick={() => (showPullModal = true)}
-								class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-primary text-on-primary hover:brightness-110 text-xs font-bold transition-all shadow-sm"
-							>
-								<span class="material-symbols-outlined text-[16px]">download</span>
-								Download to PC
-							</button>
-						{/if}
-
-						<button
-							onclick={() => { renameNewName = selectedFile?.name || ''; showRenameModal = true; }}
-							class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition-all"
-						>
-							<span class="material-symbols-outlined text-[16px]">edit</span>
-							Rename
-						</button>
-
-						<button
-							onclick={() => selectedFile && handleDelete(selectedFile)}
-							class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-error/15 text-error hover:bg-error/25 text-xs font-bold transition-all"
-						>
-							<span class="material-symbols-outlined text-[16px]">delete</span>
-							Delete
-						</button>
-					</div>
-				</div>
-			{/if}
+			<!-- Right File Details Panel -->
+			<FileDetailsPanel
+				{selectedFile}
+				{getFileIcon}
+				{formatBytes}
+				{formatTimestamp}
+				onclose={() => (selectedFile = null)}
+				onpull={() => selectedFile && openPullModal(selectedFile)}
+				oncopypath={() => selectedFile && copyPathToClipboard(selectedFile)}
+				onrename={() => selectedFile && openRenameModal(selectedFile)}
+				ondelete={() => selectedFile && requestDelete(selectedFile)}
+			/>
 
 		</div>
 	</div>
 </main>
 
-<!-- Action Modals -->
+<!-- Floating Context Menu -->
+<FileContextMenu
+	show={contextMenu.show}
+	x={contextMenu.x}
+	y={contextMenu.y}
+	file={contextMenu.file}
+	{formatBytes}
+	onopenfolder={handleItemDblClick}
+	onpull={openPullModal}
+	oncopypath={copyPathToClipboard}
+	onrename={openRenameModal}
+	ondelete={requestDelete}
+/>
 
-<!-- New Folder Modal -->
-{#if showNewFolderModal}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-sm w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
-			<h3 class="text-base font-bold text-on-surface">Create New Directory</h3>
-			<input
-				type="text"
-				bind:value={newFolderName}
-				placeholder="Folder name"
-				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
-			/>
-			<div class="flex gap-2 justify-end">
-				<button onclick={() => (showNewFolderModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
-				<button onclick={handleCreateFolder} class="px-4 py-2 rounded-xl text-xs font-bold bg-primary text-on-primary hover:brightness-110">Create Folder</button>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Rename Modal -->
-{#if showRenameModal}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-sm w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
-			<h3 class="text-base font-bold text-on-surface">Rename Item</h3>
-			<input
-				type="text"
-				bind:value={renameNewName}
-				placeholder="New name"
-				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
-			/>
-			<div class="flex gap-2 justify-end">
-				<button onclick={() => (showRenameModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
-				<button onclick={handleRename} class="px-4 py-2 rounded-xl text-xs font-bold bg-primary text-on-primary hover:brightness-110">Rename</button>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Upload File Modal -->
-{#if showPushModal}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-md w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
-			<h3 class="text-base font-bold text-on-surface">Upload File to Device</h3>
-			<p class="text-xs text-on-surface-variant">Destination path: <code class="font-mono text-primary">{currentPath}</code></p>
-			<input
-				type="text"
-				bind:value={localPushPath}
-				placeholder="/path/to/local/file.txt"
-				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
-			/>
-			<div class="flex gap-2 justify-end">
-				<button onclick={() => (showPushModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
-				<button onclick={handlePushFile} class="px-4 py-2 rounded-xl text-xs font-bold bg-primary text-on-primary hover:brightness-110">Upload File</button>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- Download File Modal -->
-{#if showPullModal}
-	<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-container p-6 rounded-[28px] max-w-md w-full flex flex-col gap-4 shadow-2xl animate-fade-in">
-			<h3 class="text-base font-bold text-on-surface">Download File to PC</h3>
-			<p class="text-xs text-on-surface-variant">Source item: <code class="font-mono text-primary">{selectedFile?.name}</code></p>
-			<input
-				type="text"
-				bind:value={localPullPath}
-				placeholder="/path/to/destination/file"
-				class="bg-surface-container-high rounded-xl px-3.5 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"
-			/>
-			<div class="flex gap-2 justify-end">
-				<button onclick={() => (showPullModal = false)} class="px-4 py-2 rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-high">Cancel</button>
-				<button onclick={handlePullFile} class="px-4 py-2 rounded-xl text-xs font-bold bg-primary text-on-primary hover:brightness-110">Download File</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<!-- Action Modals (New Folder, Upload with Browse File Picker, Rename, Pull, Delete Confirm) -->
+<FileModals
+	{currentPath}
+	{selectedFile}
+	{showNewFolderModal}
+	bind:newFolderName
+	oncreatenewfolder={handleCreateFolder}
+	oncancelnewfolder={() => (showNewFolderModal = false)}
+	{showRenameModal}
+	bind:renameNewName
+	onrename={handleRename}
+	oncancelrename={() => (showRenameModal = false)}
+	{showPushModal}
+	bind:localPushPath
+	onpush={handlePushFile}
+	oncancelpush={() => (showPushModal = false)}
+	{showPullModal}
+	bind:localPullPath
+	onpull={handlePullFile}
+	oncancelpull={() => (showPullModal = false)}
+	{confirmModalState}
+	oncancelconfirm={() => (confirmModalState.show = false)}
+/>
 
 <style>
 	@keyframes fadeIn {
