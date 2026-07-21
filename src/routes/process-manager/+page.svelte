@@ -38,23 +38,6 @@
 	let searchQuery = $state('');
 	let activePid = $state<number | null>(null);
 
-	const mockProcessList: ProcessItem[] = [
-		{ pid: 1824, user: 'u0_a145', name: 'com.android.chrome', cpu: 14.2, memMb: 380, isSystem: false, status: 'running', threads: 48, stateStr: 'S (sleeping/active)' },
-		{ pid: 2140, user: 'u0_a189', name: 'com.whatsapp', cpu: 3.8, memMb: 210, isSystem: false, status: 'running', threads: 32, stateStr: 'S (sleeping)' },
-		{ pid: 3102, user: 'u0_a204', name: 'com.spotify.music', cpu: 6.5, memMb: 185, isSystem: false, status: 'running', threads: 28, stateStr: 'S (sleeping)' },
-		{ pid: 4120, user: 'u0_a230', name: 'com.instagram.android', cpu: 9.1, memMb: 340, isSystem: false, status: 'running', threads: 54, stateStr: 'S (sleeping)' },
-		{ pid: 5201, user: 'u0_a310', name: 'com.mobile.legends', cpu: 22.4, memMb: 620, isSystem: false, status: 'running', threads: 72, stateStr: 'R (running/gaming)' },
-		{ pid: 6145, user: 'u0_a102', name: 'com.google.android.youtube', cpu: 4.2, memMb: 290, isSystem: false, status: 'sleeping', threads: 36, stateStr: 'S (sleeping)' },
-		{ pid: 745, user: 'system', name: 'system_server', cpu: 8.5, memMb: 420, isSystem: true, status: 'running', threads: 120, stateStr: 'S (system core daemon)' },
-		{ pid: 312, user: 'system', name: 'surfaceflinger', cpu: 11.0, memMb: 140, isSystem: true, status: 'running', threads: 18, stateStr: 'R (composer service)' },
-		{ pid: 512, user: 'root', name: 'zygote64', cpu: 1.2, memMb: 95, isSystem: true, status: 'running', threads: 4, stateStr: 'S (app daemon loader)' },
-		{ pid: 140, user: 'root', name: 'adbd', cpu: 0.8, memMb: 18, isSystem: true, status: 'running', threads: 6, stateStr: 'S (adb socket service)' },
-		{ pid: 890, user: 'audioserver', name: 'audioserver', cpu: 2.1, memMb: 45, isSystem: true, status: 'running', threads: 14, stateStr: 'S (audio HAL server)' },
-		{ pid: 612, user: 'network', name: 'netd', cpu: 0.4, memMb: 24, isSystem: true, status: 'sleeping', threads: 10, stateStr: 'S (net daemon)' },
-		{ pid: 450, user: 'root', name: 'vold', cpu: 0.2, memMb: 16, isSystem: true, status: 'sleeping', threads: 6, stateStr: 'S (volume daemon)' },
-		{ pid: 1024, user: 'system', name: 'com.android.systemui', cpu: 7.4, memMb: 310, isSystem: true, status: 'running', threads: 64, stateStr: 'S (systemui framework)' }
-	];
-
 	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
 		if (isTauri && invoke) {
 			return (await invoke(cmd, args)) as T;
@@ -90,10 +73,7 @@
 					devices = [];
 				}
 			} else {
-				devices = [
-					{ id: 'fastboot-pixel-8', name: 'Google Pixel 8 Pro' },
-					{ id: 'adb-galaxy-s24', name: 'Samsung Galaxy S24 Ultra' }
-				];
+				devices = [];
 			}
 
 			if (devices.length > 0) {
@@ -126,17 +106,17 @@
 						user: p.user || 'system',
 						name: p.name,
 						cpu: typeof p.cpu === 'number' ? p.cpu : parseFloat(String(p.cpu || 0)),
-						memMb: parseInt(String(p.mem || '50').replace(/[^0-9]/g, '')) || 50,
+						memMb: parseInt(String(p.mem || '0').replace(/[^0-9]/g, '')) || 0,
 						isSystem: p.user === 'root' || p.user === 'system',
 						status: 'running',
-						threads: Math.floor(Math.random() * 40 + 8),
+						threads: 1,
 						stateStr: 'S (sleeping/active)'
 					}));
 				} else {
-					processes = mockProcessList;
+					processes = [];
 				}
 			} else {
-				processes = mockProcessList;
+				processes = [];
 			}
 
 			if (processes.length > 0) {
@@ -145,9 +125,9 @@
 				activePid = null;
 			}
 		} catch (e) {
-			console.warn('Fallback to mock processes:', e);
-			processes = mockProcessList;
-			if (processes.length > 0) activePid = processes[0].pid;
+			error = `Failed to load processes: ${e}`;
+			processes = [];
+			activePid = null;
 		} finally {
 			loading = false;
 		}

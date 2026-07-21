@@ -27,45 +27,6 @@
 	let searchQuery = $state<string>('');
 	let expandedEntryId = $state<string | null>(null);
 
-	const mockAuditEntries: AuditEntry[] = [
-		{
-			id: 'audit-001',
-			timestamp: '2026-07-18 21:04:12',
-			operation: 'fastboot_flash_partition',
-			level: 'Success',
-			message: 'Flashed boot.img partition to slot A',
-			details: 'target: boot_a\nfile: /tmp/boot.img (67,108,864 bytes)\ntime: 1.42s\nstatus: OKAY',
-			duration_ms: 1420
-		},
-		{
-			id: 'audit-002',
-			timestamp: '2026-07-18 21:02:45',
-			operation: 'install_app_cmd',
-			level: 'Info',
-			message: 'Installed com.example.app via ADB',
-			details: 'pkg: com.example.app\napk: /downloads/base.apk\nresult: Success',
-			duration_ms: 2840
-		},
-		{
-			id: 'audit-003',
-			timestamp: '2026-07-18 20:58:10',
-			operation: 'adb_sideload_cmd',
-			level: 'Error',
-			message: 'Sideload failed: device unauthorized',
-			details: 'error: device disconnected or failed handshake during sideload transmission',
-			duration_ms: 850
-		},
-		{
-			id: 'audit-004',
-			timestamp: '2026-07-18 20:45:00',
-			operation: 'fastboot_wipe_userdata',
-			level: 'Warning',
-			message: 'Executed factory reset wipe userdata',
-			details: 'wiped /data & /cache partitions',
-			duration_ms: 3100
-		}
-	];
-
 	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
 		if (isTauri && invoke) {
 			return (await invoke(cmd, args)) as T;
@@ -107,7 +68,7 @@
 					}))
 					: [];
 			} else {
-				entries = mockAuditEntries;
+				entries = [];
 			}
 		} catch (e) {
 			console.warn('Failed to fetch audit logs:', e);

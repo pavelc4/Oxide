@@ -55,21 +55,6 @@
 		})
 	);
 
-	const sampleLogs: Omit<LogEntry, 'id' | 'time' | 'pid' | 'tid'>[] = [
-		{ level: 'I', tag: 'ActivityManager', message: 'Displayed com.android.chrome/.MainActivity: +214ms' },
-		{ level: 'D', tag: 'WifiService', message: 'WifiDevice: Connected to 5GHz_Office_WiFi (RSSI: -48dBm)' },
-		{ level: 'I', tag: 'BatteryService', message: 'UPDATE battery level=88%, status=Charging, temp=31.4°C' },
-		{ level: 'D', tag: 'InputDispatcher', message: 'Delivered MotionEvent ACTION_DOWN to window (x=540, y=1180)' },
-		{ level: 'W', tag: 'SurfaceFlinger', message: 'Frame 18294 dropped: VSYNC missed by 3.8ms' },
-		{ level: 'I', tag: 'PackageManager', message: 'Package Verification result: ALLOW for com.whatsapp' },
-		{ level: 'E', tag: 'MediaProvider', message: 'Failed to access /sdcard/DCIM/.thumbnails: Permission denied' },
-		{ level: 'D', tag: 'AudioService', message: 'AudioDeviceChanged: Bluetooth A2DP active (LDAC 990kbps)' },
-		{ level: 'I', tag: 'OxideDaemon', message: 'ADB Server socket 127.0.0.1:5037 heartbeat OK' },
-		{ level: 'W', tag: 'SystemUI', message: 'NotificationShade expand event triggered by user touch' },
-		{ level: 'D', tag: 'GmsCore', message: 'GMS LocationProvider: Location update delivered (acc=5.0m)' },
-		{ level: 'E', tag: 'CameraService', message: 'HAL device error: Stream 0 buffer allocation failed' }
-	];
-
 	async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
 		if (isTauri && invoke) {
 			return (await invoke(cmd, args)) as T;
@@ -92,43 +77,47 @@
 
 		await loadDevices();
 
-		// Initial seed logs
-		const initial: LogEntry[] = sampleLogs.slice(0, 10).map((s, i) => ({
-			id: i + 1,
-			time: new Date(Date.now() - (10 - i) * 1500).toTimeString().split(' ')[0] + '.' + Math.floor(Math.random() * 900 + 100),
-			pid: 1200 + i * 35,
-			tid: 1240 + i * 35,
-			level: s.level,
-			tag: s.tag,
-			message: s.message
-		}));
-		logEntries = initial;
-		logCounter = 11;
-
-		// Live log streaming loop
-		streamInterval = setInterval(() => {
-			if (!isStreaming) return;
-			const sample = sampleLogs[Math.floor(Math.random() * sampleLogs.length)];
-			const newEntry: LogEntry = {
-				id: logCounter++,
-				time: new Date().toTimeString().split(' ')[0] + '.' + Math.floor(Math.random() * 900 + 100),
-				pid: 1400 + Math.floor(Math.random() * 600),
-				tid: 1450 + Math.floor(Math.random() * 600),
-				level: sample.level,
-				tag: sample.tag,
-				message: sample.message
-			};
-
-			logEntries = [...logEntries.slice(-1000), newEntry];
-
-			if (autoScroll && logContainer) {
-				setTimeout(() => {
-					if (logContainer) {
-						logContainer.scrollTop = logContainer.scrollHeight;
+		// Real logcat stream polling
+		streamInterval = setInterval(async () => {
+			if (!isStreaming || !selectedDevice || !isTauri) return;
+			try {
+				const output = await safeInvoke<string>('device_shell', {
+					serial: selectedDevice,
+					command: 'logcat -d -t 20'
+				});
+				if (output) {
+					const lines = output.split('\n');
+					const newEntries: LogEntry[] = [];
+					for (const line of lines) {
+						if (!line.trim() || line.startsWith('------')) continue;
+						const match = line.match(/^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+([^:]+):\s+(.*)$/);
+						if (match) {
+							newEntries.push({
+								id: logCounter++,
+								time: match[1],
+								pid: parseInt(match[2], 10),
+								tid: parseInt(match[3], 10),
+								level: match[4] as LogEntry['level'],
+								tag: match[5].trim(),
+								message: match[6]
+							});
+						}
 					}
-				}, 20);
+					if (newEntries.length > 0) {
+						logEntries = [...logEntries.slice(-1000), ...newEntries];
+						if (autoScroll && logContainer) {
+							setTimeout(() => {
+								if (logContainer) {
+									logContainer.scrollTop = logContainer.scrollHeight;
+								}
+							}, 20);
+						}
+					}
+				}
+			} catch (e) {
+				console.warn('Logcat stream error:', e);
 			}
-		}, 1400);
+		}, 2000);
 	});
 
 	onDestroy(() => {
