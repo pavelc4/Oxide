@@ -117,12 +117,7 @@
 			} else {
 				processes = [];
 			}
-
-			if (processes.length > 0) {
-				activePid = processes[0].pid;
-			} else {
-				activePid = null;
-			}
+			activePid = null;
 		} catch (e) {
 			error = `Failed to load processes: ${e}`;
 			processes = [];
@@ -272,12 +267,13 @@
 			<!-- Unified Borderless Seamless Process Stream Panel (Logcat Style) -->
 			<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container p-6 shadow-sm min-h-0">
 				<!-- Table Header -->
-				<div class="grid grid-cols-12 gap-3 pb-3 mb-2 shrink-0 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 px-3">
+				<div class="grid grid-cols-12 gap-3 pb-3 mb-2 shrink-0 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 px-3.5">
 					<div class="col-span-2 sm:col-span-1">PID</div>
-					<div class="col-span-3 sm:col-span-2">USER</div>
-					<div class="col-span-3 sm:col-span-2">TYPE</div>
-					<div class="col-span-4 sm:col-span-2">MEMORY</div>
-					<div class="col-span-12 sm:col-span-5">PROCESS NAME</div>
+					<div class="col-span-5 sm:col-span-4">PROCESS NAME</div>
+					<div class="col-span-2 sm:col-span-2">TYPE</div>
+					<div class="col-span-3 sm:col-span-2">MEMORY</div>
+					<div class="col-span-2 sm:col-span-1">STATE</div>
+					<div class="col-span-3 sm:col-span-2 text-right pr-1">OWNER USER</div>
 				</div>
 
 				<!-- Scrollable Seamless Process List -->
