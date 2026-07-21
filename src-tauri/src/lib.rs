@@ -73,9 +73,13 @@ fn disable_package(serial: String, package: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn install_apk(serial: String, path: String) -> Result<(), String> {
-    let mut d = device::state::connect_serial(&serial);
-    device::app::manager::install_apk(&mut d, &path, None)
+async fn install_apk(serial: String, path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = device::state::connect_serial(&serial);
+        device::app::manager::install_apk(&mut d, &path, None)
+    })
+    .await
+    .map_err(|e| format!("Task error: {e}"))?
 }
 
 #[tauri::command]
@@ -173,6 +177,16 @@ fn get_perf(serial: String) -> device::perf::monitor::PerfSnapshot {
 }
 
 #[tauri::command]
+async fn list_processes(serial: String) -> Result<Vec<device::perf::monitor::ProcessItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = device::state::connect_serial(&serial);
+        Ok(device::perf::monitor::list_processes(&mut d))
+    })
+    .await
+    .map_err(|e| format!("Task error: {e}"))?
+}
+
+#[tauri::command]
 fn wireless_connect(host: String) -> Result<(), String> {
     device::net::wireless::connect_device(&host)
 }
@@ -261,6 +275,7 @@ pub fn run() {
             get_config,
             save_config,
             get_perf,
+            list_processes,
             wireless_connect,
             wireless_disconnect,
             wireless_tcpip,

@@ -105,8 +105,145 @@ pub fn disable_package(device: &mut ADBServerDevice, package: &str) -> Result<()
     Ok(())
 }
 
+pub fn resolve_local_apk_path(apk_path: &str) -> std::path::PathBuf {
+    let raw = apk_path.trim();
+
+    let direct = if raw.starts_with("~/") {
+        if let Some(home) = dirs::home_dir() {
+            home.join(&raw[2..])
+        } else {
+            std::path::PathBuf::from(raw)
+        }
+    } else {
+        std::path::PathBuf::from(raw)
+    };
+
+    if direct.exists() {
+        if direct.is_file() && direct.extension().and_then(|s| s.to_str()) == Some("apk") {
+            let stem = direct.file_stem().unwrap_or_default().to_string_lossy();
+            if let Some(parent) = direct.parent() {
+                let sibling_dir = parent.join(stem.as_ref());
+                if sibling_dir.is_dir() {
+                    return sibling_dir;
+                }
+            }
+        }
+        return direct;
+    }
+
+    if let Some(download_dir) = dirs::download_dir() {
+        let oxide_apps = download_dir.join("Oxide").join("Apps");
+        let app_dir = oxide_apps.join(raw);
+        if app_dir.exists() {
+            return app_dir;
+        }
+
+        let app_dir_no_ext = oxide_apps.join(raw.trim_end_matches(".apk"));
+        if app_dir_no_ext.is_dir() {
+            return app_dir_no_ext;
+        }
+
+        let oxide_file = oxide_apps.join(raw);
+        if oxide_file.exists() {
+            return oxide_file;
+        }
+    }
+
+    direct
+}
+
 pub fn install_apk(device: &mut ADBServerDevice, apk_path: &str, user: Option<&str>) -> Result<(), String> {
-    device.install(apk_path, user).map_err(|e| format!("install: {e}"))
+    let resolved_path = resolve_local_apk_path(apk_path);
+    if !resolved_path.exists() {
+        return Err(format!("APK file not found at local path '{apk_path}'"));
+    }
+
+    let apk_files: Vec<String> = if resolved_path.is_dir() {
+        std::fs::read_dir(&resolved_path)
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("apk"))
+            .map(|p| p.to_string_lossy().to_string())
+            .collect()
+    } else if let Some(parent) = resolved_path.parent() {
+        let siblings: Vec<String> = std::fs::read_dir(parent)
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("apk"))
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
+        if siblings.len() > 1 {
+            siblings
+        } else {
+            vec![resolved_path.to_string_lossy().to_string()]
+        }
+    } else {
+        vec![resolved_path.to_string_lossy().to_string()]
+    };
+
+    let mut unique_apk_files: Vec<String> = Vec::new();
+    let mut seen_names = std::collections::HashSet::new();
+
+    for file in apk_files {
+        let name = std::path::Path::new(&file).file_name().unwrap_or_default().to_string_lossy().to_string();
+        if name == "base.apk" || name.ends_with(".apk") {
+            let meta_size = std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
+            let key = format!("{name}_{meta_size}");
+            if seen_names.contains(&key) {
+                continue;
+            }
+            if (name.contains(&resolved_path.file_stem().unwrap_or_default().to_string_lossy().to_string()) || name == "base.apk") && seen_names.iter().any(|k: &String| k.starts_with("base.apk_")) {
+                continue;
+            }
+            seen_names.insert(key);
+            unique_apk_files.push(file);
+        }
+    }
+
+    if unique_apk_files.len() > 1 {
+        let mut remote_paths = Vec::new();
+        for local_file in &unique_apk_files {
+            let file_name = std::path::Path::new(local_file).file_name().unwrap_or_default().to_string_lossy();
+            let remote_tmp = format!("/data/local/tmp/{file_name}");
+            if let Ok(mut file) = std::fs::File::open(local_file) {
+                let _ = crate::device::file::explorer::push_file(device, &mut file, &remote_tmp);
+                remote_paths.push(remote_tmp);
+            }
+        }
+
+        if remote_paths.is_empty() {
+            return Err("Failed to stage split APK files on device".into());
+        }
+
+        let remote_args = remote_paths.join(" ");
+        let mut out = Vec::new();
+        let cmd = format!("cmd package install -r -g {remote_args} 2>/dev/null || pm install -r -g {remote_args}");
+        let _ = device.shell_command(&cmd, Some(&mut out), None);
+
+        let _ = device.shell_command(&format!("rm -f {remote_args}"), None, None);
+
+        let text = String::from_utf8_lossy(&out);
+        if text.contains("Success") {
+            Ok(())
+        } else {
+            Err(format!("Split APK installation failed: {}", text.trim()))
+        }
+    } else {
+        device.install(resolved_path.as_path(), user).map_err(|e| {
+            let err_str = e.to_string();
+            if err_str.contains("INSTALL_FAILED_MISSING_SPLIT") {
+                format!("Installation failed: This app requires Split APKs (INSTALL_FAILED_MISSING_SPLIT). Please place all split APK files (base.apk + split_*.apk) in the same folder and select/drag the folder.")
+            } else {
+                format!("install: {e}")
+            }
+        })
+    }
 }
 
 pub fn uninstall_package(device: &mut ADBServerDevice, package: &str, user: Option<&str>) -> Result<(), String> {
@@ -127,17 +264,41 @@ pub fn clear_package(device: &mut ADBServerDevice, package: &str) -> Result<(), 
 }
 
 pub fn pull_package_apk(device: &mut ADBServerDevice, package: &str, destination: &str) -> Result<String, String> {
-    let info = get_package_info(device, package)?;
-    let remote_path = info.apk_path.ok_or_else(|| format!("Could not find installed APK path for package '{package}'"))?;
+    let mut out = Vec::new();
+    let _ = device.shell_command(&format!("pm path {package}"), Some(&mut out), None);
+    let text = String::from_utf8_lossy(&out);
 
-    let local_dest = if destination.ends_with(".apk") {
-        destination.to_string()
+    let paths: Vec<String> = text
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| l.starts_with("package:"))
+        .map(|l| l.strip_prefix("package:").unwrap_or(l).trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if paths.is_empty() {
+        return Err(format!("Could not find APK paths for package '{package}'"));
+    }
+
+    let target_dir = if destination.ends_with(".apk") {
+        std::path::Path::new(destination).parent().unwrap_or(std::path::Path::new(destination)).to_string_lossy().to_string()
     } else {
-        format!("{}/{package}.apk", destination.trim_end_matches('/'))
+        destination.trim_end_matches('/').to_string()
     };
 
-    crate::device::file::explorer::pull_item(device, &remote_path, &local_dest)?;
-    Ok(local_dest)
+    let app_dir = format!("{target_dir}/{package}");
+    let _ = std::fs::create_dir_all(&app_dir);
+
+    for remote_path in &paths {
+        let filename = std::path::Path::new(remote_path)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let local_file = format!("{app_dir}/{filename}");
+        crate::device::file::explorer::pull_item(device, remote_path, &local_file)?;
+    }
+
+    Ok(app_dir)
 }
 
 pub fn parse_pm_output(output: &str) -> Vec<String> {
@@ -257,5 +418,53 @@ Packages:
         assert_eq!(info.data_dir.unwrap(), "/data/user/0/com.whatsapp");
         assert!(!info.is_system_app);
         assert!(info.is_enabled);
+    }
+
+    #[test]
+    fn test_resolve_local_apk_path_nonexistent() {
+        let path = resolve_local_apk_path("non_existent_app_12345.apk");
+        assert_eq!(path.to_string_lossy(), "non_existent_app_12345.apk");
+    }
+
+    #[test]
+    fn test_split_apk_deduplication() {
+        let temp_dir = std::env::temp_dir().join("oxide_test_splits");
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let base_file = temp_dir.join("base.apk");
+        let split_file = temp_dir.join("split_config.arm64_v8a.apk");
+        let dup_file = temp_dir.join("com.example.app.apk");
+
+        let _ = std::fs::write(&base_file, b"APKDATA123");
+        let _ = std::fs::write(&split_file, b"SPLITDATA456");
+        let _ = std::fs::write(&dup_file, b"APKDATA123"); // Same size as base.apk
+
+        let files = vec![
+            base_file.to_string_lossy().to_string(),
+            split_file.to_string_lossy().to_string(),
+            dup_file.to_string_lossy().to_string(),
+        ];
+
+        let mut unique_apk_files: Vec<String> = Vec::new();
+        let mut seen_names = std::collections::HashSet::new();
+
+        for file in files {
+            let name = std::path::Path::new(&file).file_name().unwrap_or_default().to_string_lossy().to_string();
+            if name == "base.apk" || name.ends_with(".apk") {
+                let meta_size = std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
+                let key = format!("{name}_{meta_size}");
+                if seen_names.contains(&key) {
+                    continue;
+                }
+                if (name.contains("com.example.app") || name == "base.apk") && seen_names.iter().any(|k: &String| k.starts_with("base.apk_")) {
+                    continue;
+                }
+                seen_names.insert(key);
+                unique_apk_files.push(file);
+            }
+        }
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        assert_eq!(unique_apk_files.len(), 2);
     }
 }

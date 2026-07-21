@@ -112,12 +112,38 @@
 		throw new Error('Tauri API not active');
 	}
 
+	let isDraggingApk = $state(false);
+	let unlistenDrop: (() => void) | undefined;
+
 	onMount(async () => {
 		try {
 			if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
 				const tauriApi = await import('@tauri-apps/api/core');
 				invoke = tauriApi.invoke;
 				isTauri = true;
+
+				try {
+					const webviewModule = await import('@tauri-apps/api/webviewWindow');
+					const appWindow = webviewModule.getCurrentWebviewWindow();
+					unlistenDrop = await appWindow.onDragDropEvent((event) => {
+						if (event.payload.type === 'over' || event.payload.type === 'enter') {
+							isDraggingApk = true;
+						} else if (event.payload.type === 'drop') {
+							isDraggingApk = false;
+							const paths = event.payload.paths;
+							if (paths && paths.length > 0) {
+								const apkFile = paths.find((p) => p.toLowerCase().endsWith('.apk'));
+								if (apkFile) {
+									installApk(apkFile);
+								}
+							}
+						} else if (event.payload.type === 'leave' || event.payload.type === 'cancel') {
+							isDraggingApk = false;
+						}
+					});
+				} catch (err) {
+					console.warn('Tauri onDragDropEvent skipped in apps page:', err);
+				}
 			} else {
 				isTauri = false;
 			}
@@ -127,6 +153,10 @@
 
 		await loadDevices();
 		await fetchDownloadsDir();
+
+		return () => {
+			if (unlistenDrop) unlistenDrop();
+		};
 	});
 
 	async function fetchDownloadsDir() {
@@ -555,10 +585,52 @@
 			installing = false;
 		}
 	}
+	function handleWorkspaceDragOver(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDraggingApk = true;
+	}
+
+	function handleWorkspaceDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDraggingApk = false;
+	}
+
+	async function handleWorkspaceDrop(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDraggingApk = false;
+
+		const files = e.dataTransfer?.files;
+		if (files && files.length > 0) {
+			for (let i = 0; i < files.length; i++) {
+				const file = files[i];
+				const fullPath = (file as any).path;
+				if (fullPath && fullPath.toLowerCase().endsWith('.apk')) {
+					await installApk(fullPath);
+					break;
+				}
+			}
+		}
+	}
 </script>
 
 <main class="flex flex-1 flex-col py-4 pr-4 pl-0 lg:py-6 lg:pr-6 lg:pl-2 h-screen overflow-hidden">
-	<div class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-5 shadow-sm">
+	<div
+		ondragover={handleWorkspaceDragOver}
+		ondragleave={handleWorkspaceDragLeave}
+		ondrop={handleWorkspaceDrop}
+		class="flex flex-1 flex-col overflow-hidden rounded-[32px] bg-surface-container-low p-6 lg:p-8 relative gap-5 shadow-sm transition-all duration-200 {isDraggingApk ? 'ring-4 ring-primary/60 bg-primary/10' : ''}"
+	>
+		<!-- Drag & Drop APK Install Overlay -->
+		{#if isDraggingApk}
+			<div class="absolute inset-0 z-40 bg-black/60 backdrop-blur-md rounded-[32px] flex flex-col items-center justify-center p-6 text-white border-2 border-dashed border-primary animate-fade-in pointer-events-none">
+				<ShapeBadge icon="install_mobile" shape="sunny" size={64} iconSize={32} bgClass="bg-primary/30" textClass="text-primary" />
+				<h3 class="text-lg font-bold mt-4">Drop APK to Install</h3>
+				<p class="text-xs text-white/80 mt-1">Release APK file to automatically install on <code class="font-mono text-primary font-bold">{selectedDevice || 'device'}</code></p>
+			</div>
+		{/if}
 		
 		<!-- Clean Page Header -->
 		<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 pb-2">
@@ -582,19 +654,19 @@
 				</div>
 			</div>
 
-			<div class="flex items-center gap-3">
+			<div class="flex items-center gap-2">
 				<button
 					onclick={fetchPackages}
-					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs"
+					class="flex h-9 w-9 items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all hover:scale-105 active:scale-95 shadow-xs border-0 outline-none cursor-pointer"
 					title="Refresh Package List"
 				>
 					<span class="material-symbols-outlined text-[18px] {loading ? 'animate-spin' : ''}">refresh</span>
 				</button>
 				<button
 					onclick={() => (showInstallModal = true)}
-					class="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:brightness-110 transition-all shadow-sm active:scale-95"
+					class="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-on-primary hover:brightness-110 transition-all shadow-xs active:scale-95 border-0 outline-none cursor-pointer"
 				>
-					<ShapeBadge shape="pixelCircle" icon="install_mobile" size={24} iconSize={13} bgClass="bg-on-primary/20" textClass="text-on-primary" />
+					<span class="material-symbols-outlined text-[18px]">install_mobile</span>
 					Install APK
 				</button>
 			</div>
@@ -605,7 +677,7 @@
 			<div class="bg-error/15 text-error p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">error</span>
 				<div class="flex-1 break-words font-semibold">{error}</div>
-				<button onclick={() => (error = '')} class="hover:opacity-85 text-[10px] font-bold uppercase tracking-wider bg-error/20 px-2.5 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (error = '')} class="hover:bg-error/25 text-error font-bold text-[11px] bg-error/20 px-3 py-1 rounded-full transition-all border-0 outline-none cursor-pointer">Dismiss</button>
 			</div>
 		{/if}
 
@@ -613,7 +685,7 @@
 			<div class="bg-primary/10 text-primary p-3.5 rounded-2xl font-medium flex items-center gap-3 text-xs shrink-0 animate-fade-in">
 				<span class="material-symbols-outlined text-[20px]">check_circle</span>
 				<div class="flex-1 break-words font-semibold">{infoMessage}</div>
-				<button onclick={() => (infoMessage = '')} class="hover:opacity-85 text-[10px] font-bold uppercase tracking-wider bg-primary/20 px-2.5 py-1 rounded-lg">Dismiss</button>
+				<button onclick={() => (infoMessage = '')} class="hover:bg-primary/25 text-primary font-bold text-[11px] bg-primary/20 px-3 py-1 rounded-full transition-all border-0 outline-none cursor-pointer">Dismiss</button>
 			</div>
 		{/if}
 

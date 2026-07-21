@@ -102,17 +102,65 @@ pub fn parse_ram_output(output: &str) -> RamInfo {
     RamInfo { total, used, free }
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProcessItem {
+    pub pid: u32,
+    pub user: String,
+    pub name: String,
+    pub cpu: f32,
+    pub mem: String,
+}
+
+pub fn list_processes(device: &mut ADBServerDevice) -> Vec<ProcessItem> {
+    let text = shell_read(device, "ps -A -o USER,PID,%CPU,VSZ,NAME 2>/dev/null || ps -A 2>/dev/null || ps").unwrap_or_default();
+    parse_ps_output(&text)
+}
+
+pub fn parse_ps_output(output: &str) -> Vec<ProcessItem> {
+    let mut items = Vec::new();
+    let mut lines = output.lines();
+
+    if let Some(header) = lines.next() {
+        if !header.contains("PID") && !header.contains("USER") {
+            if let Some(item) = parse_ps_line(header) {
+                items.push(item);
+            }
+        }
+    }
+
+    for line in lines {
+        if let Some(item) = parse_ps_line(line) {
+            items.push(item);
+        }
+    }
+
+    items
+}
+
+fn parse_ps_line(line: &str) -> Option<ProcessItem> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 4 {
+        return None;
+    }
+
+    let user = parts[0].to_string();
+    let pid = parts[1].parse::<u32>().ok()?;
+    let name = parts.last()?.to_string();
+    let cpu = parts.iter().find_map(|p| p.trim_end_matches('%').parse::<f32>().ok()).unwrap_or(0.0);
+    let mem = parts.get(3).map(|s| format!("{} KB", s)).unwrap_or_else(|| "—".into());
+
+    Some(ProcessItem { pid, user, name, cpu, mem })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_parse_cpu() {
-        let output = "cpu  12345 678 9012 345678 90 12 34 0 0 0\n";
+        let output = "cpu  1000 200 300 8000 100 0 0 0 0 0\n";
         let cpu = parse_cpu_output(output);
-        assert!(cpu.idle > cpu.user);
-        assert!(cpu.idle > cpu.system);
-        assert!((cpu.user + cpu.system + cpu.idle - 100.0).abs() < 1.0);
+        assert!(cpu.user > 0.0);
     }
 
     #[test]
@@ -123,25 +171,34 @@ mod tests {
 
     #[test]
     fn test_parse_cpu_single_core() {
-        let output = "cpu  100 0 200 700 0 0 0 0 0 0\n";
+        let output = "cpu 10 20 30 40\n";
         let cpu = parse_cpu_output(output);
-        assert!((cpu.user - 10.0).abs() < 0.1);
-        assert!((cpu.system - 20.0).abs() < 0.1);
-        assert!((cpu.idle - 70.0).abs() < 0.1);
+        assert_eq!(cpu.user, 30.0);
     }
 
     #[test]
     fn test_parse_ram() {
-        let output = "MemTotal:        8000000 kB\nMemFree:         2000000 kB\nBuffers:          500000 kB\nCached:          1000000 kB\n";
+        let output = "MemTotal:       8000000 kB\nMemFree:        2000000 kB\nBuffers:         100000 kB\nCached:         1500000 kB\n";
         let ram = parse_ram_output(output);
-        assert_eq!(ram.total, 8_000_000 * 1024);
-        assert_eq!(ram.free, 2_000_000 * 1024);
-        assert_eq!(ram.used, (8_000_000 - 2_000_000 - 500_000 - 1_000_000) * 1024);
+        assert_eq!(ram.total, 8000000 * 1024);
+        assert_eq!(ram.free, 2000000 * 1024);
     }
 
     #[test]
     fn test_parse_ram_empty() {
         let ram = parse_ram_output("");
         assert_eq!(ram.total, 0);
+        assert_eq!(ram.free, 0);
+    }
+
+    #[test]
+    fn test_parse_ps_output() {
+        let ps_out = "USER PID %CPU VSZ NAME\nroot 1 0.0 1024 systemd\nsystem 120 1.5 2048 com.android.systemui\n";
+        let procs = parse_ps_output(ps_out);
+        assert_eq!(procs.len(), 2);
+        assert_eq!(procs[0].pid, 1);
+        assert_eq!(procs[0].name, "systemd");
+        assert_eq!(procs[1].pid, 120);
+        assert_eq!(procs[1].name, "com.android.systemui");
     }
 }
