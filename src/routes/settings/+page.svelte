@@ -43,6 +43,11 @@
 	let cornerRadius = $state<'expressive' | 'medium' | 'compact'>('expressive');
 	let autoWirelessAdb = $state(true);
 	let logcatBufferLimit = $state<'1000' | '5000' | '10000' | 'unlimited'>('5000');
+	let logcatExportFormat = $state<'log' | 'txt'>(
+		typeof localStorage !== 'undefined'
+			? (localStorage.getItem('oxide:logcatExportFormat') as 'log' | 'txt') || 'log'
+			: 'log'
+	);
 	let adbDaemonPort = $state('5037');
 
 	// Sound & Notifications Customization States
@@ -72,6 +77,7 @@
 			localStorage.setItem('oxide:terminalCursorStyle', terminalCursorStyle);
 			localStorage.setItem('oxide:autoGrantPermissions', String(autoGrantPermissions));
 			localStorage.setItem('oxide:iconShape', iconShape);
+			localStorage.setItem('oxide:logcatExportFormat', logcatExportFormat);
 		}
 	});
 
@@ -504,7 +510,7 @@
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 					<div class="flex flex-col gap-1.5">
 						<label for="adb-port-input" class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Daemon Port</label>
 						<input
@@ -525,6 +531,17 @@
 								{ value: '5000', label: '5,000 Lines (Default)' },
 								{ value: '10000', label: '10,000 Lines' },
 								{ value: 'unlimited', label: 'Unlimited (High RAM)' }
+							]}
+						/>
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Export File Extension</span>
+						<Select
+							id="logcat-format-select"
+							bind:value={logcatExportFormat}
+							options={[
+								{ value: 'log', label: '.log (Standard Logcat)' },
+								{ value: 'txt', label: '.txt (Text File)' }
 							]}
 						/>
 					</div>

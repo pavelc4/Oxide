@@ -33,6 +33,7 @@
 	let logEntries = $state<LogEntry[]>([]);
 	let isStreaming = $state(true);
 	let autoScroll = $state(true);
+	let userPausedScroll = $state(false); // true when user clicked a log or scrolled up
 	let selectedLevel = $state<'ALL' | 'V' | 'D' | 'I' | 'W' | 'E' | 'F'>('ALL');
 	let searchQuery = $state('');
 	let selectedLogId = $state<number | null>(null);
@@ -40,6 +41,31 @@
 	let logContainer: HTMLDivElement | undefined;
 	let logCounter = 1;
 	let streamInterval: ReturnType<typeof setInterval> | undefined;
+
+	// Detect user scroll position: if scrolled back to bottom, resume autoScroll
+	function handleLogScroll() {
+		if (!logContainer) return;
+		const { scrollTop, scrollHeight, clientHeight } = logContainer;
+		const atBottom = scrollHeight - scrollTop - clientHeight < 40;
+		if (atBottom && userPausedScroll) {
+			userPausedScroll = false;
+			autoScroll = true;
+		} else if (!atBottom && !userPausedScroll) {
+			userPausedScroll = true;
+			autoScroll = false;
+		}
+	}
+
+	// When user selects a log entry, pause autoScroll
+	function selectLog(logId: number) {
+		if (selectedLogId === logId) {
+			selectedLogId = null;
+		} else {
+			selectedLogId = logId;
+			autoScroll = false;
+			userPausedScroll = true;
+		}
+	}
 
 	// Derived filtered logs
 	let filteredLogs = $derived(
@@ -153,17 +179,33 @@
 		selectedLogId = null;
 	}
 
+	function getFormattedTimestamp(): string {
+		const now = new Date();
+		const dd = String(now.getDate()).padStart(2, '0');
+		const mm = String(now.getMonth() + 1).padStart(2, '0');
+		const yyyy = now.getFullYear();
+		const hh = String(now.getHours()).padStart(2, '0');
+		const min = String(now.getMinutes()).padStart(2, '0');
+		const ss = String(now.getSeconds()).padStart(2, '0');
+		return `${dd}-${mm}-${yyyy}_${hh}-${min}-${ss}`;
+	}
+
 	function exportLogs() {
 		if (logEntries.length === 0) return;
+		const ext = typeof localStorage !== 'undefined'
+			? (localStorage.getItem('oxide:logcatExportFormat') || 'log')
+			: 'log';
+		const timestamp = getFormattedTimestamp();
+		const fileName = `logcat_${selectedDevice || 'device'}_${timestamp}.${ext}`;
 		const text = logEntries.map((l) => `${l.time} ${l.pid} ${l.tid} ${l.level} ${l.tag}: ${l.message}`).join('\n');
 		const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `logcat_${selectedDevice || 'device'}_${Date.now()}.txt`;
+		a.download = fileName;
 		a.click();
 		URL.revokeObjectURL(url);
-		infoMessage = `Exported ${logEntries.length} logcat entries to file!`;
+		infoMessage = `Exported ${logEntries.length} logcat entries to Downloads/Oxide/Logcat (${fileName})!`;
 	}
 
 	function copyLogText(log: LogEntry) {
@@ -291,7 +333,7 @@
 			</div>
 
 			<!-- Scrollable Seamless Log Stream List (Zero Outline Borders) -->
-			<div bind:this={logContainer} class="flex-1 overflow-y-auto pr-1 flex flex-col gap-0.5 font-mono text-xs">
+			<div bind:this={logContainer} onscroll={handleLogScroll} class="flex-1 overflow-y-auto pr-1 flex flex-col gap-0.5 font-mono text-xs">
 				{#if filteredLogs.length === 0}
 					<div class="flex flex-col items-center justify-center h-full text-on-surface-variant/70 p-12 text-center">
 						<span class="material-symbols-outlined text-[48px] opacity-40 mb-2">subtitles_off</span>
@@ -302,7 +344,7 @@
 						<LogcatItem
 							{log}
 							isSelected={selectedLogId === log.id}
-							onselect={() => (selectedLogId = selectedLogId === log.id ? null : log.id)}
+							onselect={() => selectLog(log.id)}
 							oncopy={copyLogText}
 						/>
 					{/each}
