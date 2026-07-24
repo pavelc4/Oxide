@@ -154,7 +154,7 @@ fn rename_file(serial: String, src: String, dst: String) -> Result<(), String> {
 #[tauri::command]
 fn get_default_download_dir() -> Result<String, String> {
     let base = dirs::download_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .unwrap_or_else(std::env::temp_dir)
         .join("Oxide");
     let _ = std::fs::create_dir_all(&base);
     Ok(base.to_string_lossy().to_string())

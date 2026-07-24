@@ -98,7 +98,8 @@ mod tests {
 
     #[test]
     fn test_boot_is_first_in_sorted() {
-        let plan = scan_folder("/tmp");
+        let tmp = std::env::temp_dir();
+        let plan = scan_folder(tmp.to_str().unwrap_or("/tmp"));
         let names: Vec<&str> = plan.entries.iter().map(|e| e.partition.as_str()).collect();
         assert!(names.is_empty() || names[0] == "boot" || names[0] != "zzz");
     }
