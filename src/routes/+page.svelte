@@ -118,6 +118,7 @@ let deviceInfo: {
 
 	let intervalId: ReturnType<typeof setInterval> | undefined;
 	let logcatIntervalId: ReturnType<typeof setInterval> | undefined;
+	let deviceIntervalId: ReturnType<typeof setInterval> | undefined;
 	let isPageVisible = true;
 
 	function onVisibilityChange() {
@@ -138,6 +139,9 @@ let deviceInfo: {
 		}
 
 		await loadDevices();
+		deviceIntervalId = setInterval(() => {
+			if (isPageVisible) loadDevices(true);
+		}, 3000);
 		if (selectedDevice) await fetchDeviceInfo(selectedDevice);
 
 		dataCpu = Array(40).fill(0).map(() => Math.floor(Math.random() * 20 + 15));
@@ -215,6 +219,7 @@ let deviceInfo: {
 		}
 		if (intervalId) clearInterval(intervalId);
 		if (logcatIntervalId) clearInterval(logcatIntervalId);
+		if (deviceIntervalId) clearInterval(deviceIntervalId);
 	});
 
 	$effect(() => {
@@ -239,9 +244,9 @@ let deviceInfo: {
 		throw new Error('Tauri API not active');
 	}
 
-	async function loadDevices() {
-		loading = true;
-		error = '';
+	async function loadDevices(silent = false) {
+		if (!silent) loading = true;
+		if (!silent) error = '';
 		try {
 			if (isTauri && invoke) {
 				const rustDevices = await safeInvoke<Array<{ serial: string; model?: string }>>('get_devices');
@@ -287,15 +292,17 @@ let deviceInfo: {
 			}
 
 			if (devices.length > 0) {
-				selectedDevice = devices[0].id;
+				if (!selectedDevice || !devices.find(d => d.id === selectedDevice)) {
+					selectedDevice = devices[0].id;
+				}
 			} else {
 				selectedDevice = '';
 			}
 		} catch (e) {
-			error = String(e);
-			devices = [];
+			if (!silent) error = String(e);
+			if (!silent) devices = [];
 		} finally {
-			loading = false;
+			if (!silent) loading = false;
 		}
 	}
 
