@@ -3,7 +3,6 @@ mod core;
 mod device;
 mod fastboot;
 mod setup;
-mod theme;
 
 #[tauri::command]
 fn get_devices() -> Vec<device::types::DeviceSummary> {
@@ -223,11 +222,6 @@ fn fastboot_reboot(_serial: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn generate_theme(argb: u32) -> theme::generator::ThemeColors {
-    theme::generator::from_color(argb)
-}
-
-#[tauri::command]
 fn get_audit_log() -> Vec<audit::log::AuditEntry> {
     audit::log::AuditLog::all()
 }
@@ -283,7 +277,6 @@ pub fn run() {
             fastboot_flash,
             fastboot_erase,
             fastboot_reboot,
-            generate_theme,
             get_audit_log,
             get_setup_status,
             complete_setup,
