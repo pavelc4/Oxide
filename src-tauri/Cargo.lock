@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "adb_client"
-version = "3.2.2"
+version = "3.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4974ac06396fce4424d9d2193f80ea5a177d6e2ddde6214ff7c14aaedd2a3104"
+checksum = "773b25a440e72829bbb1b96435ee0e65ef0f14a3da545590930ca881a68e59d7"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
